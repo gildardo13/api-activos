@@ -51,7 +51,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-
   app.use((req: Request, res: Response, next: NextFunction) => {
     const ip =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
@@ -65,7 +64,8 @@ async function bootstrap() {
     try {
       if (req?.cookies?.user) {
         const userId = JSON.parse(req.cookies.user)?.state?.id;
-        const staffId = JSON.parse(req.cookies.user)?.state?.organizations[0]?.staffId;
+        const staffId = JSON.parse(req.cookies.user)?.state?.organizations[0]
+          ?.staffId;
         if (userId) {
           store.set('userId', userId);
           store.set('staffId', staffId);
@@ -78,7 +78,7 @@ async function bootstrap() {
     RequestContext.run(store, () => next());
   });
 
-  await app.listen(2001);
+  await app.listen(2100);
 }
 
 bootstrap();
