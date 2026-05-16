@@ -1,0 +1,315 @@
+// comando para generar este schema
+//  npx prisma generate --schema=prisma/auth.prisma
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../node_modules/@prisma/client-auth"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_AUTH")
+}
+
+model User {
+  id                String             @id
+  name              String
+  email             String             @unique
+  emailVerified     Boolean
+  image             String?
+  createdAt         DateTime
+  updatedAt         DateTime
+  role              String?
+  banned            Boolean?           @default(false)
+  banReason         String?
+  banExpires        DateTime?
+  accounts          Account[]
+  invitations       Invitation[]
+  members           Member[]
+  oauthaccesstokens OauthAccessToken[]
+  oauthapplications OauthApplication[]
+  oauthconsents     OauthConsent[]
+  sessions          Session[]
+
+  @@map("user")
+}
+
+model Session {
+  id                   String   @id
+  expiresAt            DateTime
+  token                String   @unique
+  createdAt            DateTime
+  updatedAt            DateTime
+  ipAddress            String?
+  userAgent            String?
+  userId               String
+  impersonatedBy       String?
+  activeOrganizationId String?
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Organization {
+  id              String         @id
+  name            String
+  slug            String         @unique
+  logo            String?
+  createdAt       DateTime
+  metadata        String?
+  country         String
+  legalName       String
+  legalPersonType String
+  status          String         @default("active")
+  taxId           String
+  invitations     Invitation[]
+  members         Member[]
+  role            Role[]
+  subscription    Subscription[]
+
+  @@unique([country, taxId])
+  @@map("organization")
+}
+
+model Member {
+  id             String       @id
+  organizationId String
+  userId         String
+  role           String       @default("member")
+  createdAt      DateTime
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberRole     MemberRole[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String       @id
+  organizationId String
+  email          String
+  role           String?
+  status         String       @default("pending")
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  inviterId      String
+  memberRole     String[]     @default([])
+  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitation")
+}
+
+model OauthApplication {
+  id                String             @id
+  name              String?
+  icon              String?
+  metadata          String?
+  clientId          String?            @unique
+  clientSecret      String?
+  redirectUrls      String?
+  type              String?
+  disabled          Boolean?           @default(false)
+  userId            String?
+  createdAt         DateTime?
+  updatedAt         DateTime?
+  module            Module[]
+  oauthaccesstokens OauthAccessToken[]
+  user              User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oauthconsents     OauthConsent[]
+  plan              Plan[]
+  subscription      Subscription[]
+
+  @@index([userId])
+  @@map("oauthApplication")
+}
+
+model OauthAccessToken {
+  id                    String            @id
+  accessToken           String?           @unique
+  refreshToken          String?           @unique
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  clientId              String?
+  userId                String?
+  scopes                String?
+  createdAt             DateTime?
+  updatedAt             DateTime?
+  oauthapplication      OauthApplication? @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user                  User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([userId])
+  @@map("oauthAccessToken")
+}
+
+model OauthConsent {
+  id               String            @id
+  clientId         String?
+  userId           String?
+  scopes           String?
+  createdAt        DateTime?
+  updatedAt        DateTime?
+  consentGiven     Boolean?
+  oauthapplication OauthApplication? @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([userId])
+  @@map("oauthConsent")
+}
+
+model Role {
+  id             String           @id @default(uuid())
+  organizationId String
+  name           String
+  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime         @default(now())
+  memberRole     MemberRole[]
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rolePermission RolePermission[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("role")
+}
+
+model Module {
+  id         String           @id @default(uuid())
+  clientId   String
+  key        String
+  name       String
+  client     OauthApplication @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  permission Permission[]
+
+  @@unique([clientId, key])
+  @@index([clientId])
+  @@map("module")
+}
+
+model Permission {
+  id             String           @id @default(uuid())
+  key            String
+  description    String
+  moduleId       String
+  module         Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  rolePermission RolePermission[]
+
+  @@unique([moduleId, key])
+  @@index([moduleId])
+  @@map("permission")
+}
+
+model MemberRole {
+  id       String @id @default(uuid())
+  memberId String
+  roleId   String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, roleId])
+  @@index([memberId])
+  @@index([roleId])
+  @@map("memberRole")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("rolePermission")
+}
+
+model Plan {
+  id           String           @id @default(uuid())
+  clientId     String
+  name         String
+  client       OauthApplication @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  subscription Subscription[]
+
+  @@map("plan")
+}
+
+model Subscription {
+  id              String           @id @default(uuid())
+  organizationId  String
+  clientId        String
+  planId          String
+  membershipLimit Int
+  status          String           @default("active")
+  startsAt        DateTime         @default(now())
+  endsAt          DateTime?
+  client          OauthApplication @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan            Plan             @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, clientId])
+  @@unique([organizationId, planId])
+  @@index([organizationId])
+  @@index([planId])
+  @@map("subscription")
+}
+
+model SignupRequest {
+  id              String   @id @default(uuid())
+  firstName       String
+  firstSurname    String
+  secondSurname   String?
+  email           String
+  logo            String?
+  taxId           String
+  legalPersonType String
+  legalName       String
+  tradeName       String
+  country         String
+  status          String   @default("pending")
+  rejectReason    String?
+  source          String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  @@map("signupRequest")
+}
