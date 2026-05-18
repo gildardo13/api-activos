@@ -1,0 +1,32 @@
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+
+export enum  FieldType {
+  TEXT = 'TEXT',
+  NUMBER = 'NUMBER',
+  SELECT = 'SELECT',
+  DATE = 'DATE',
+  FILE = 'FILE',
+}
+
+export class AssetFieldDefinition {
+  @IsOptional()
+  @IsString()
+  assetTypeId?: string;
+
+  @IsOptional()
+  @IsString()
+  label?: string;
+
+  @IsOptional()
+  @IsEnum(FieldType)
+  fieldType?: FieldType;
+
+  @IsOptional()
+  @IsBoolean()
+  isRequired?: boolean;
+}

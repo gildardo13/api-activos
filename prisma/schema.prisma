@@ -7,3 +7,185 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+model AssetType {
+  id          String   @id @default(uuid())
+  categoryId  String
+  name        String
+  description String?
+  status Status @default(ACTIVE)
+
+  assets      Asset[]
+  assetFieldDefinitions      AssetFieldDefinition[]
+  jibbyCategory JibbyCategory @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+model Asset {
+  id          String   @id @default(uuid())
+  assetTypeId String
+  code String
+  name String
+  description String?
+  status Status @default(ACTIVE)
+  lastLocation String?
+
+  assetTelemetryLogs  AssetTelemetryLog[]
+  assetDocuments AssetDocument[]
+  assetGeofences AssetGeofence[]
+  assetAssignments AssetAssignment[]
+  assetType AssetType @relation(fields: [assetTypeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetTypeId])
+}
+
+model AssetTelemetryLog {
+  id String @id @default(uuid())
+  assetId String
+  latitud String
+  longitud String
+  speed String
+  recordedAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+}
+
+model AssetFieldDefinition {
+  id String @id @default(uuid())
+  assetTypeId String
+  label String
+  fieldType String
+  isRequired Boolean
+  
+  assetDocuments AssetDocument[]
+  assetType AssetType @relation(fields: [assetTypeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetTypeId])
+ 
+}
+
+
+model AssetDocument {
+  id String @id @default(uuid())
+  fieldDefinitionId String
+  assetId String
+  fileName String
+  fileUrl String
+  uploadedAt DateTime @default(now())
+
+  assetDocumentChunks  AssetDocumentChunk[]
+  asset Asset @relation(fields: [assetId], references: [id])
+  assetFieldDefinition AssetFieldDefinition @relation(fields: [fieldDefinitionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fieldDefinitionId])
+  @@index([assetId])
+}
+
+model AssetGeofence {
+  id String @id @default(uuid())
+  assetId String
+  name String
+  coordinates String
+  status Status @default(ACTIVE)
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+
+}
+
+model AssetDocumentChunk {
+  id String @id @default(uuid())
+  assetDocumentId String
+  content String
+  embedding String
+  
+  assetDocument AssetDocument @relation(fields: [assetDocumentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetDocumentId])
+}
+
+model JibbyCategory {
+  id    String @id @default(uuid())
+  name  String
+
+  assetTypes      AssetType[]
+}
+model RhStaff {
+  id String @id @default(uuid())
+  name String
+
+  assetAssignments AssetAssignment[]
+}
+model RhArea {
+  id String @id @default(uuid())
+  name String
+
+  assetAssignments AssetAssignment[]
+}
+
+model AssetAssignment {
+  id String @id @default(uuid())
+  assetId String
+  assignmentType String
+  projectId String
+  staffId String
+  areaId String
+  assignedAt DateTime
+  returnedAt DateTime?
+
+  asset Asset @relation(fields: [assetId], references: [id])
+  rhStaff RhStaff @relation(fields: [staffId], references: [id])
+  rhArea   RhArea   @relation(fields: [areaId], references: [id])
+  project   Project   @relation(fields: [projectId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+  @@index([projectId])
+  @@index([staffId])
+  @@index([areaId])
+}
+
+model Project{
+  id String @id @default(uuid())
+  name String
+  code String
+  status Status @default(ACTIVE)
+  typeId String
+
+  assetAssignments AssetAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

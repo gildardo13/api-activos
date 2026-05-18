@@ -7,6 +7,7 @@ import { CloudinaryModule } from './common/cloudinary/cloudinary.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { SecondaryPrismaModule } from './prisma/prisma-auth.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { IntegrationModule } from './common/integration/integration.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     MulterModule.register({}),
     CloudinaryModule,
     ScheduleModule.forRoot(),
+    IntegrationModule,
   ],
   controllers: [],
   providers: [],
