@@ -18,16 +18,34 @@ export class AssetTelemetryLogsService {
     });
   }
 
-  findAll(prisma: PrismaClient) {
-    return prisma.assetTelemetryLog.findMany({
+  async findAll(prisma: PrismaClient) {
+    const logs = await prisma.assetTelemetryLog.findMany({
       orderBy: {
         recordedAt: 'desc',
       },
     });
+
+    const latestGrouped = await this.findLatest(prisma);
+
+    const lastLocations = await Promise.all(
+      latestGrouped.map(async (item) => {
+        return prisma.assetTelemetryLog.findFirst({
+          where: {
+            assetId: item.assetId,
+            recordedAt: item._max.recordedAt!,
+          },
+        });
+      }),
+    );
+
+    return {
+      logs,
+      lastLocations,
+    };
   }
 
   // 2. HISTORIAL (por asset)
-  findAllHistoryByAsset(
+  async findAllHistoryByAsset(
     assetId: string,
     prisma: PrismaClient,
   ) {
@@ -41,11 +59,11 @@ export class AssetTelemetryLogsService {
 
   // 3. ÚLTIMA UBICACIÓN
   async findLatest(
-    assetId: string,
+    //assetId: string,
     prisma: PrismaClient,
   ) {
     return prisma.assetTelemetryLog.findFirst({
-      where: { assetId },
+      //where: { assetId },
       orderBy: {
         recordedAt: 'desc',
       },
