@@ -1,34 +1,84 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Req,
+} from '@nestjs/common';
+
 import { AssetTelemetryLogsService } from './asset-telemetry-logs.service';
 import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto';
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
+import { PrismaClient } from '@prisma/client';
 
 @Controller('asset-telemetry-logs')
 export class AssetTelemetryLogsController {
-  constructor(private readonly assetTelemetryLogsService: AssetTelemetryLogsService) {}
+  constructor(
+    private readonly assetTelemetryLogsService: AssetTelemetryLogsService,
+  ) {}
 
-  @Post()
-  create(@Body() createAssetTelemetryLogDto: CreateAssetTelemetryLogDto) {
-    return this.assetTelemetryLogsService.create(createAssetTelemetryLogDto);
+  @Post('/create')
+  @HttpCode(HttpStatus.CREATED)
+  create(
+    @Body() createAssetTelemetryLogDto: CreateAssetTelemetryLogDto,
+    @Req() req: Request,
+  ) {
+    const prisma = req['prisma'] as PrismaClient;
+
+    return this.assetTelemetryLogsService.create(
+      createAssetTelemetryLogDto,
+      prisma,
+    );
   }
 
-  @Get()
-  findAll() {
-    return this.assetTelemetryLogsService.findAll();
+  @Get('/find-all')
+  @HttpCode(HttpStatus.OK)
+  findAll(@Req() req: Request) {
+    const prisma = req['prisma'] as PrismaClient;
+
+    return this.assetTelemetryLogsService.findAll(prisma);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.assetTelemetryLogsService.findOne(+id);
+  @Get('/find-one/:id')
+  @HttpCode(HttpStatus.OK)
+  findOne(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const prisma = req['prisma'] as PrismaClient;
+
+    return this.assetTelemetryLogsService.findOne(id, prisma);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAssetTelemetryLogDto: UpdateAssetTelemetryLogDto) {
-    return this.assetTelemetryLogsService.update(+id, updateAssetTelemetryLogDto);
+  @Patch('/update/:id')
+  @HttpCode(HttpStatus.OK)
+  update(
+    @Param('id') id: string,
+    @Body() updateAssetTelemetryLogDto: UpdateAssetTelemetryLogDto,
+    @Req() req: Request,
+  ) {
+    const prisma = req['prisma'] as PrismaClient;
+
+    return this.assetTelemetryLogsService.update(
+      id,
+      updateAssetTelemetryLogDto,
+      prisma,
+    );
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.assetTelemetryLogsService.remove(+id);
+  @Delete('/delete/:id')
+  @HttpCode(HttpStatus.OK)
+  remove(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const prisma = req['prisma'] as PrismaClient;
+
+    return this.assetTelemetryLogsService.remove(id, prisma);
   }
 }

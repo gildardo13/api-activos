@@ -10,20 +10,21 @@ export enum Status {
   DELETED = 'DELETED',
 }
 
-export class AssetType  {
-     @IsOptional()
-      @IsString()
-      categoryId?: string;
-    
-      @IsOptional()
-      @IsString()
-      name?: string;
-    
-      @IsOptional()
-      @IsString()
-      description?: string;
-    
-      @IsOptional()
-      @IsEnum(Status)
-      status?: Status;
+export class AssetType {
+  id: string;
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(Status)
+  status?: Status;
 }

@@ -6,7 +6,9 @@ export enum Status {
   DELETED = 'DELETED',
 }
 
-export class Asset{
+export class Asset {
+  id: string;
+  
   @IsString()
   assetTypeId: string;
 

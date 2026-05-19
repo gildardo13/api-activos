@@ -14,6 +14,8 @@ export enum  FieldType {
 }
 
 export class AssetFieldDefinition {
+  id: string;
+  
   @IsOptional()
   @IsString()
   assetTypeId?: string;

@@ -9,6 +9,17 @@ import { SecondaryPrismaModule } from './prisma/prisma-auth.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { IntegrationModule } from './common/integration/integration.module';
 
+// Asset and related modules
+import { AssetsModule } from './assets/assets.module';
+import { AssetTypesModule } from './asset-types/asset-types.module';
+import { AssetFieldDefinitionsModule } from './asset-field-definitions/asset-field-definitions.module';
+import { AssetDocumentsModule } from './asset-documents/asset-documents.module';
+import { AssetTelemetryLogsModule } from './asset-telemetry-logs/asset-telemetry-logs.module';
+import { AssetGeofencesModule } from './asset-geofences/asset-geofences.module';
+import { AssetAssignmentsModule } from './asset-assignments/asset-assignments.module';
+import { AssetDocumentChunksModule } from './asset-document-chunks/asset-document-chunks.module';
+import { ProjectsModule } from './projects/projects.module';
+
 @Module({
   imports: [
     AuthModule,
@@ -19,6 +30,16 @@ import { IntegrationModule } from './common/integration/integration.module';
     CloudinaryModule,
     ScheduleModule.forRoot(),
     IntegrationModule,
+    // Registering the new modules
+    AssetsModule,
+    AssetTypesModule,
+    AssetFieldDefinitionsModule,
+    AssetDocumentsModule,
+    AssetTelemetryLogsModule,
+    AssetGeofencesModule,
+    AssetAssignmentsModule,
+    AssetDocumentChunksModule,
+    ProjectsModule,
   ],
   controllers: [],
   providers: [],
