@@ -8,7 +8,7 @@ import { PrismaClient } from '@prisma/client';
 import { Req, } from '@nestjs/common';
 import { QueryAssetTypeDto } from './dto/query-asset-type.dto';
 
-@Controller('asset-types')
+@Controller('asset-type')
 export class AssetTypesController {
   constructor(private readonly assetTypesService: AssetTypesService) { }
 

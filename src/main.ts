@@ -26,6 +26,7 @@ async function bootstrap() {
       'http://localhost:3001', // control activos
       'http://localhost:4001', // admin
       'http://localhost:9001', // control documental
+      'http://localhost:4002', // control activo
       'https://auth.jibby.mx',
       'https://activos.jibby.mx',
       'https://admin.jibby.mx',
