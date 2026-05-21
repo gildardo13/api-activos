@@ -19,6 +19,7 @@ import { AssetGeofencesModule } from './asset-geofences/asset-geofences.module';
 import { AssetAssignmentsModule } from './asset-assignments/asset-assignments.module';
 import { AssetDocumentChunksModule } from './asset-document-chunks/asset-document-chunks.module';
 import { ProjectsModule } from './projects/projects.module';
+import { CategoryJibbyModule } from './category-jibby/category-jibby.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ProjectsModule } from './projects/projects.module';
     AssetAssignmentsModule,
     AssetDocumentChunksModule,
     ProjectsModule,
+    CategoryJibbyModule
   ],
   controllers: [],
   providers: [],
