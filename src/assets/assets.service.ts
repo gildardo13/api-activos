@@ -145,4 +145,108 @@ export class AssetsService {
       data: { status },
     });
   }
+
+  async createNewAsset(dto: any, prisma: PrismaClient) {
+    const { assetTypeId, data_fields, file_fields } = dto;
+
+    // 1. validar assetType
+    const assetType = await prisma.assetType.findUnique({
+      where: { id: assetTypeId },
+      include: { assetFieldDefinitions: true },
+    });
+
+    if (!assetType) {
+      throw new BadRequestException('Asset type does not exist');
+    }
+
+    const fields = assetType.assetFieldDefinitions;
+
+    // 2. validar required fields
+    const requiredFields = fields.filter((f) => f.isRequired);
+
+    for (const field of requiredFields) {
+      if (!(field.label in data_fields)) {
+        throw new BadRequestException(
+          `Missing required field: ${field.label}`,
+        );
+      }
+    }
+
+    // 3. validar tipos
+    for (const field of fields) {
+      const value = data_fields[field.label];
+
+      if (value === undefined) continue;
+
+      switch (field.fieldType) {
+        case 'NUMBER':
+          if (typeof value !== 'number') {
+            throw new BadRequestException(
+              `${field.label} must be number`,
+            );
+          }
+          break;
+
+        case 'TEXT':
+          if (typeof value !== 'string') {
+            throw new BadRequestException(
+              `${field.label} must be string`,
+            );
+          }
+          break;
+
+        case 'SELECT':
+          if (typeof value !== 'string') {
+            throw new BadRequestException(
+              `${field.label} must be string`,
+            );
+          }
+          break;
+
+        case 'DATE':
+          if (isNaN(Date.parse(value))) {
+            throw new BadRequestException(
+              `${field.label} must be valid date`,
+            );
+          }
+          break;
+
+        case 'FILE':
+          if (typeof value !== 'string') {
+            throw new BadRequestException(
+              `${field.label} must be file path or url`,
+            );
+          }
+          break;
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const asset = await tx.asset.create({
+        data: {
+          assetTypeId,
+          code: dto.code,
+          name: dto.name,
+          description: dto.description,
+          status: dto.status,
+          lastLocation: dto.lastLocation,
+
+        },
+      });
+
+      // 5. documentos
+      if (file_fields?.length) {
+        await tx.assetDocument.createMany({
+          data: file_fields.map((file: any) => ({
+            assetId: asset.id,
+            fieldDefinitionId: file.fieldDefinitionId,
+            fileName: file.fileName,
+            fileUrl: file.fileUrl,
+          })),
+        });
+      }
+
+      return asset;
+    });
+  }
 }

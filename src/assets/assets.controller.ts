@@ -28,6 +28,14 @@ export class AssetsController {
     return this.assetsService.create(createAssetDto, prisma);
   }
 
+  @Post('create-file_fields-asset')
+  @HttpCode(HttpStatus.CREATED)
+  createNewAsset(@Body() createNewAssetDto: CreateAssetDto, @Req() req: Request) {
+    const prisma = req['prisma'] as PrismaClient;
+
+    return this.assetsService.createNewAsset(createNewAssetDto, prisma);
+  }
+
   @Get()
   @HttpCode(HttpStatus.OK)
   findAll(@Req() req: Request) {

@@ -99,7 +99,7 @@ export class IntegrationService {
 
     await Promise.all(
       transformed.map((cat) =>
-        this.prisma.client.jibbyCategory.upsert({
+        this.prisma.jibbyCategory.upsert({
           where: { id: cat.id },
           create: { id: cat.id, name: cat.name },
           update: { name: cat.name },
@@ -129,7 +129,7 @@ export class IntegrationService {
 
     await Promise.all(
       transformed.map((staff) =>
-        this.prisma.client.rhStaff.upsert({
+        this.prisma.rhStaff.upsert({
           where: { id: staff.id },
           create: { id: staff.id, name: staff.name },
           update: { name: staff.name },
@@ -159,7 +159,7 @@ export class IntegrationService {
 
     await Promise.all(
       transformed.map((area) =>
-        this.prisma.client.rhArea.upsert({
+        this.prisma.rhArea.upsert({
           where: { id: area.id },
           create: { id: area.id, name: area.name },
           update: { name: area.name },
@@ -178,7 +178,7 @@ export class IntegrationService {
     prisma?: any,
     params: { token?: string; organizationId?: string; forceSync?: boolean } = {},
   ): Promise<InternalModel[]> {
-    const db = prisma ?? this.prisma.client;
+    const db = prisma ?? this.prisma;
 
     const count = await db.jibbyCategory.count();
 
@@ -199,7 +199,7 @@ export class IntegrationService {
     prisma?: any,
     params: { token?: string; organizationId?: string; forceSync?: boolean } = {},
   ): Promise<InternalModel[]> {
-    const db = prisma ?? this.prisma.client;
+    const db = prisma ?? this.prisma;
 
     const count = await db.rhStaff.count();
 
@@ -220,7 +220,7 @@ export class IntegrationService {
     prisma?: any,
     params: { token?: string; organizationId?: string; forceSync?: boolean } = {},
   ): Promise<InternalModel[]> {
-    const db = prisma ?? this.prisma.client;
+    const db = prisma ?? this.prisma;
 
     const count = await db.rhArea.count();
 

@@ -3,11 +3,13 @@ import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
 import { PrismaClient, Status } from '@prisma/client';
 import { QueryAssetTypeDto } from './dto/query-asset-type.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AssetTypesService {
-  async create(createAssetTypeDto: CreateAssetTypeDto, prisma: PrismaClient) {
-    const existing = await prisma.assetType.findFirst({
+  constructor(private prisma: PrismaService) {}
+  async create(createAssetTypeDto: CreateAssetTypeDto) {
+    const existing = await this.prisma.assetType.findFirst({
       where: {
         name: createAssetTypeDto.name,
       },
@@ -17,7 +19,7 @@ export class AssetTypesService {
       throw new BadRequestException('Asset type already exists');
     }
 
-    const newAssetType = await prisma.assetType.create({
+    const newAssetType = await this.prisma.assetType.create({
       data: createAssetTypeDto,
     });
 
@@ -26,7 +28,6 @@ export class AssetTypesService {
 
   async findAll(
     query: QueryAssetTypeDto,
-    prisma: PrismaClient,
   ) {
     const {
       page = 1,
@@ -62,7 +63,7 @@ export class AssetTypesService {
     }
 
     const [items, total] = await Promise.all([
-      prisma.assetType.findMany({
+      this.prisma.assetType.findMany({
         where,
         include: {
           jibbyCategory: true,
@@ -76,7 +77,7 @@ export class AssetTypesService {
         take: limit,
       }),
 
-      prisma.assetType.count({
+      this.prisma.assetType.count({
         where,
       }),
     ]);

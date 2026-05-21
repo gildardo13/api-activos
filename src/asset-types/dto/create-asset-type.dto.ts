@@ -7,6 +7,10 @@ export enum Status {
 }
 
 export class CreateAssetTypeDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsString()
   categoryId: string;
 

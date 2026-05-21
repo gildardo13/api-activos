@@ -8,22 +8,20 @@ import { PrismaClient } from '@prisma/client';
 import { Req, } from '@nestjs/common';
 import { QueryAssetTypeDto } from './dto/query-asset-type.dto';
 
-@Controller('asset-types')
+@Controller('asset-type')
 export class AssetTypesController {
   constructor(private readonly assetTypesService: AssetTypesService) { }
 
   @Post('/create-asset-type')
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createAssetTypeDto: CreateAssetTypeDto, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetTypesService.create(createAssetTypeDto, prisma);
+    return this.assetTypesService.create(createAssetTypeDto);
   }
 
   @Get('/find-all')
   @HttpCode(HttpStatus.OK)
   findAll(@Query() query: QueryAssetTypeDto, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetTypesService.findAll(query, prisma);
+    return this.assetTypesService.findAll(query);
   }
 
   @Get('/find-one/:id')
