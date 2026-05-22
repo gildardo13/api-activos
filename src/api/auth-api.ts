@@ -5,7 +5,8 @@ const api = axios.create({
     ? process.env.CONTROL_ACTIVOS_AUTH_BACK_DEV
     : process.env.CONTROL_ACTIVOS_ENV === "prod"
       ? process.env.CONTROL_ACTIVOS_AUTH_BACK_PROD
-      : process.env.CONTROL_ACTIVOS_AUTH_BACK_TEST
+      : process.env.CONTROL_ACTIVOS_AUTH_BACK_TEST,
+     withCredentials: true,
 });
 
 export const assignStaffToUser = async (

@@ -1,9 +1,20 @@
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Logger,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+} from 'axios';
+
 import { PrismaService } from '../../prisma/prisma.service';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Modelo interno normalizado (id + name) que comparten Categories, Staff, Areas
+// Modelo interno normalizado
 // ─────────────────────────────────────────────────────────────────────────────
 export interface InternalModel {
   id: string;
@@ -11,20 +22,31 @@ export interface InternalModel {
 }
 
 @Injectable()
-export class IntegrationService {
+export class IntegrationService implements OnApplicationBootstrap {
   private readonly logger = new Logger(IntegrationService.name);
+
   private readonly rhClient: AxiosInstance;
   private readonly authBaseUrl: string;
+
   private systemAccessToken: string | null = null;
   private systemRefreshToken: string | null = null;
 
+  /** Evita sincronizar múltiples veces */
+  private hasSynced = false;
+
+
+
   constructor(private readonly prisma: PrismaService) {
     const env = process.env.CONTROL_ACTIVOS_ENV;
+
     const isProd = env === 'prod';
     const isTest = env === 'test';
 
-    // ── Resolver URL del backend RH según entorno ────────────────────────────
+    // ────────────────────────────────────────────────────────────────────────
+    // RH BACKEND URL
+    // ────────────────────────────────────────────────────────────────────────
     const rhBaseUrl =
+      process.env.RH_BACK_PROD ||
       process.env.EXTERNAL_RH_API_URL ||
       (isProd
         ? process.env.CONTROL_ACTIVOS_BACK_PROD
@@ -33,7 +55,9 @@ export class IntegrationService {
           : process.env.CONTROL_ACTIVOS_BACK_DEV) ||
       'http://localhost:2001/';
 
-    // ── Resolver URL del backend Auth ────────────────────────────────────────
+    // ────────────────────────────────────────────────────────────────────────
+    // AUTH BACKEND URL
+    // ────────────────────────────────────────────────────────────────────────
     this.authBaseUrl =
       process.env.EXTERNAL_AUTH_API_URL ||
       (isProd
@@ -43,8 +67,9 @@ export class IntegrationService {
           : process.env.CONTROL_ACTIVOS_AUTH_BACK_DEV) ||
       'http://localhost:4003/';
 
-
-    // ── Construir cliente Axios ───
+    // ────────────────────────────────────────────────────────────────────────
+    // AXIOS CLIENT
+    // ────────────────────────────────────────────────────────────────────────
     this.rhClient = axios.create({
       baseURL: rhBaseUrl,
       timeout: parseInt(process.env.EXTERNAL_API_TIMEOUT || '10000', 10),
@@ -55,25 +80,41 @@ export class IntegrationService {
       },
     });
 
-    // ── Interceptor: 401 → refresh token automático ──────────────────────────
+    // ────────────────────────────────────────────────────────────────────────
+    // Interceptor 401 → refresh token
+    // ────────────────────────────────────────────────────────────────────────
     this.rhClient.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry
+        ) {
           originalRequest._retry = true;
-          this.logger.warn('401 recibido — intentando refrescar token del sistema...');
+
+          this.logger.warn(
+            '401 recibido — intentando refrescar token del sistema...',
+          );
 
           try {
             const newToken = await this.refreshSystemToken();
+
             if (newToken) {
-              this.logger.log('Token refrescado — reintentando request original...');
-              originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              this.logger.log(
+                'Token refrescado — reintentando request original...',
+              );
+
+              originalRequest.headers['Authorization'] =
+                `Bearer ${newToken}`;
+
               return this.rhClient(originalRequest);
             }
           } catch (refreshError: any) {
-            this.logger.error(`Error refrescando token: ${refreshError.message}`);
+            this.logger.error(
+              `Error refrescando token: ${refreshError.message}`,
+            );
           }
         }
 
@@ -82,206 +123,398 @@ export class IntegrationService {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // APP BOOTSTRAP
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async onApplicationBootstrap(): Promise<void> {
+    const token = await this.refreshSystemToken();
+
+    if (token) {
+      this.logger.log(
+        'Credenciales detectadas — sincronizando RH...',
+      );
+
+      await this._runSync();
+    } else {
+      this.logger.log(
+        'ℹSin credenciales de sistema.',
+      );
+    }
+  }
+
+  /**
+   * Trigger manual bootstrap sync
+   */
+  async triggerBootstrapSync(sessionToken: string, organizationId: string): Promise<void> {
+    const countRes = await this.rhClient.get('/staff/count/staff', {
+      headers: this.buildHeaders(
+        this.systemAccessToken,
+        organizationId
+      ),
+    });
+    const expected = countRes.data?.staffActive || 0;
+
+    const dbCount = await this.prisma.rhStaff.count();
+
+    const isSynced = dbCount >= expected;
+    this.hasSynced = isSynced;
+
+    if (this.hasSynced) return;
+
+    this.systemAccessToken = sessionToken;
+
+    this._runSync().catch((err) =>
+      this.logger.error(
+        `Error en sync lazy RH: ${err.message}`,
+      ),
+    );
+  }
+
+  private async _runSync(): Promise<void> {
+    if (this.hasSynced) return;
+
+    this.hasSynced = true;
+
+    this.logger.log(
+      'Sincronizando RH (staff + áreas)...',
+    );
+
+    try {
+      await Promise.allSettled([
+        this.syncStaff(),
+        this.syncAreas(),
+      ]);
+
+      this.logger.log(
+        'Sincronización RH completada.',
+      );
+    } catch (err: any) {
+      this.hasSynced = false;
+
+      this.logger.error(
+        `Error sincronizando RH: ${err.message}`,
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // CATEGORIES
+  // ───────────────────────────────────────────────────────────────────────────
 
   async syncCategories(params: {
     token?: string;
     organizationId?: string;
   } = {}): Promise<void> {
-    this.logger.log('Sincronizando categorías externas...');
+    this.logger.log(
+      'Sincronizando categorías externas...',
+    );
 
     const items = await this.fetchAllPages<any>({
       url: 'category',
-      token: params.token,
+      token: this.systemAccessToken,
       organizationId: params.organizationId,
-    });
+    }, 'GET');
 
-    const transformed = items.map((i) => this.transformCategory(i));
+    const transformed = items.map((i) =>
+      this.transformCategory(i),
+    );
 
     await Promise.all(
       transformed.map((cat) =>
         this.prisma.jibbyCategory.upsert({
           where: { id: cat.id },
-          create: { id: cat.id, name: cat.name },
-          update: { name: cat.name },
+          create: {
+            id: cat.id,
+            name: cat.name,
+          },
+          update: {
+            name: cat.name,
+          },
         }),
       ),
     );
 
-    this.logger.log(`Categorías sincronizadas: ${transformed.length}`);
+    this.logger.log(
+      `Categorías sincronizadas: ${transformed.length}`,
+    );
   }
 
-  /**
-   * Sincroniza personal RH externo → tabla local `RhStaff`.
-   */
   async syncStaff(params: {
     token?: string;
     organizationId?: string;
   } = {}): Promise<void> {
+
     this.logger.log('Sincronizando staff externo...');
 
-    const items = await this.fetchAllPages<any>({
-      url: 'staff',
-      token: params.token,
-      organizationId: params.organizationId,
-    });
-
-    const transformed = items.map((i) => this.transformStaff(i));
-
-    await Promise.all(
-      transformed.map((staff) =>
-        this.prisma.rhStaff.upsert({
-          where: { id: staff.id },
-          create: { id: staff.id, name: staff.name },
-          update: { name: staff.name },
-        }),
-      ),
+    const items = await this.fetchAllPages<any>(
+      {
+        url: 'staff/find_all',
+        token: params.token || this.systemAccessToken || undefined,
+      },
+      'POST',
     );
 
-    this.logger.log(`Staff sincronizado: ${transformed.length}`);
+    const transformed = items.map((i) => {
+      const id =
+        i.id ??
+        i.staffId ??
+        i.id_personal ??
+        i._id ??
+        null;
+
+      const name =
+        i.fullName ??
+        i.name ??
+        i.nombre ??
+        i.nombreCompleto ??
+        'Sin nombre';
+
+      return {
+        id: id ? String(id).trim() : null,
+        name: String(name).trim(),
+      };
+    });
+
+    const valid = transformed.filter(
+      (s) => typeof s.id === 'string' && s.id.length > 0,
+    );
+
+    const unique = new Map<string, InternalModel>();
+    for (const s of valid) {
+      unique.set(s.id, s);
+    }
+
+    const finalStaff = [...unique.values()];
+
+    let inserted = 0;
+    let updated = 0;
+
+    for (const staff of finalStaff) {
+      const exists = await this.prisma.rhStaff.findUnique({
+        where: { id: staff.id },
+      });
+
+      if (!exists) {
+        inserted++
+        await this.prisma.rhStaff.upsert({
+          where: { id: staff.id },
+          create: {
+            id: staff.id,
+            name: staff.name,
+          },
+          update: {
+            name: staff.name,
+          },
+        });
+      }
+
+
+    }
+
+    const dbCount = await this.prisma.rhStaff.count();
+
+    this.logger.log(
+      `Staff API: ${items.length} | procesados: ${finalStaff.length} | DB final: ${dbCount} (insertados: ${inserted})`,
+    );
   }
 
-  /**
-   * Sincroniza áreas externas → tabla local `RhArea`.
-   */
   async syncAreas(params: {
     token?: string;
     organizationId?: string;
   } = {}): Promise<void> {
-    this.logger.log('Sincronizando áreas externas...');
+    this.logger.log(
+      'Sincronizando áreas externas...',
+    );
 
     const items = await this.fetchAllPages<any>({
-      url: 'area',
-      token: params.token,
+      url: 'area/selector',
+      token: this.systemAccessToken,
       organizationId: params.organizationId,
-    });
+    }, 'GET');
 
-    const transformed = items.map((i) => this.transformArea(i));
+    const transformed = items
+      .map((i) => this.transformArea(i))
+      .filter((a) => a.id);
 
     await Promise.all(
       transformed.map((area) =>
         this.prisma.rhArea.upsert({
           where: { id: area.id },
-          create: { id: area.id, name: area.name },
-          update: { name: area.name },
+          create: {
+            id: area.id,
+            name: area.name,
+          },
+          update: {
+            name: area.name,
+          },
         }),
       ),
     );
 
-    this.logger.log(`Áreas sincronizadas: ${transformed.length}`);
+    this.logger.log(
+      `Áreas sincronizadas: ${transformed.length}`,
+    );
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // GET — Lee de la tabla LOCAL (con sync-on-empty automático)
+  // GETTERS
   // ───────────────────────────────────────────────────────────────────────────
 
   async getCategories(
     prisma?: any,
-    params: { token?: string; organizationId?: string; forceSync?: boolean } = {},
+    params: {
+      token?: string;
+      organizationId?: string;
+      forceSync?: boolean;
+    } = {},
   ): Promise<InternalModel[]> {
     const db = prisma ?? this.prisma;
 
     const count = await db.jibbyCategory.count();
 
     if (count === 0 || params.forceSync) {
-      this.logger.log('JibbyCategory vacía — ejecutando syncCategories()...');
-      await this.syncCategories({ token: params.token, organizationId: params.organizationId });
+      await this.syncCategories({
+        token: params.token,
+        organizationId: params.organizationId,
+      });
     }
 
-    const rows = await db.jibbyCategory.findMany({ orderBy: { name: 'asc' } });
-    return rows.map((r: any) => ({ id: r.id, name: r.name }));
+    const rows = await db.jibbyCategory.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+    }));
   }
 
-  /**
-   * Retorna staff desde la tabla local `RhStaff`.
-   * Si la tabla está vacía, ejecuta `syncStaff()` primero.
-   */
   async getStaff(
     prisma?: any,
-    params: { token?: string; organizationId?: string; forceSync?: boolean } = {},
+    params: {
+      token?: string;
+      organizationId?: string;
+      forceSync?: boolean;
+    } = {},
   ): Promise<InternalModel[]> {
     const db = prisma ?? this.prisma;
 
     const count = await db.rhStaff.count();
 
     if (count === 0 || params.forceSync) {
-      this.logger.log('RhStaff vacío — ejecutando syncStaff()...');
-      await this.syncStaff({ token: params.token, organizationId: params.organizationId });
+      await this.syncStaff({
+        token: params.token,
+        organizationId: params.organizationId,
+      });
     }
 
-    const rows = await db.rhStaff.findMany({ orderBy: { name: 'asc' } });
-    return rows.map((r: any) => ({ id: r.id, name: r.name }));
+    const rows = await db.rhStaff.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+    }));
   }
 
-  /**
-   * Retorna áreas desde la tabla local `RhArea`.
-   * Si la tabla está vacía, ejecuta `syncAreas()` primero.
-   */
   async getAreas(
     prisma?: any,
-    params: { token?: string; organizationId?: string; forceSync?: boolean } = {},
+    params: {
+      token?: string;
+      organizationId?: string;
+      forceSync?: boolean;
+    } = {},
   ): Promise<InternalModel[]> {
     const db = prisma ?? this.prisma;
 
     const count = await db.rhArea.count();
 
     if (count === 0 || params.forceSync) {
-      this.logger.log('RhArea vacía — ejecutando syncAreas()...');
-      await this.syncAreas({ token: params.token, organizationId: params.organizationId });
+      await this.syncAreas({
+        token: params.token,
+        organizationId: params.organizationId,
+      });
     }
 
-    const rows = await db.rhArea.findMany({ orderBy: { name: 'asc' } });
-    return rows.map((r: any) => ({ id: r.id, name: r.name }));
+    const rows = await db.rhArea.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+    }));
   }
 
-  private async fetchAllPages<T>(params: {
-    url: string;
-    token?: string;
-    organizationId?: string;
-    pageSize?: number;
-  }): Promise<T[]> {
+  // ───────────────────────────────────────────────────────────────────────────
+  // FETCH ALL PAGES
+  // ───────────────────────────────────────────────────────────────────────────
+
+  private async fetchAllPages<T>(
+    params: {
+      url: string;
+      token?: string;
+      organizationId?: string;
+      pageSize?: number;
+    },
+    typeMethod: 'GET' | 'POST' = 'GET',
+  ): Promise<T[]> {
     const pageSize = params.pageSize ?? 100;
+
     let page = 1;
-    let allItems: T[] = [];
+    const allItems: T[] = [];
 
     while (true) {
-      const headers = this.buildHeaders(params.token, params.organizationId);
+      const headers = this.buildHeaders(
+        params.token,
+        params.organizationId,
+      );
 
-      const response = await this.requestWithRetry<any>({
-        method: 'GET',
+      const requestConfig: AxiosRequestConfig = {
+        method: typeMethod,
         url: params.url,
-        params: { page, pageSize },
         headers,
-      });
+      };
 
+      if (typeMethod === 'GET') {
+        requestConfig.params = { page, pageSize };
+      } else {
+        requestConfig.data = { data: {}, page, pageSize };
+      }
+
+      const response = await this.requestWithRetry<any>(requestConfig);
       const data = response.data;
 
-      // Normalizar respuesta: puede ser array plano o paginado
-      const items: T[] = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.items)
-            ? data.items
-            : [];
+      const items: T[] =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.items)
+              ? data.items
+              : [];
 
-      if (items.length === 0) break;
+      if (!items.length) break;
 
-      allItems = allItems.concat(items);
-
-      // Si la respuesta indica total, verificar si hay más páginas
-      const total: number = data?.total ?? data?.totalCount ?? Infinity;
-      if (allItems.length >= total || items.length < pageSize) break;
+      allItems.push(...items);
+      this.logger.debug(
+        `Page ${page} → items: ${items.length} | total acumulado: ${allItems.length}`,
+      );
 
       page++;
+
+      if (items.length < pageSize) break;
     }
 
     return allItems;
   }
 
-  /**
-   * Construye los headers para una request al RH API.
-   * Usa el token de usuario si existe; si no, el token del sistema.
-   */
+  // ───────────────────────────────────────────────────────────────────────────
+  // HEADERS
+  // ───────────────────────────────────────────────────────────────────────────
+
   private buildHeaders(
     token?: string,
     organizationId?: string,
@@ -291,101 +524,161 @@ export class IntegrationService {
       Accept: 'application/json',
     };
 
-    const activeToken = token
-      ? (token.startsWith('Bearer ') ? token.slice(7) : token)
-      : this.systemAccessToken || process.env.SYSTEM_ACCESS_TOKEN || '';
+    // token de sesión RH
+    const activeToken =
+      token ||
+      this.systemAccessToken ||
+      process.env.SYSTEM_ACCESS_TOKEN ||
+      '';
 
+    // RH usa cookie app_session
     if (activeToken) {
-      headers['Authorization'] = `Bearer ${activeToken}`;
+      headers['Cookie'] = `app_session=${activeToken}`;
     }
 
+    // empresa requerida por RH
     headers['empresa'] =
-      organizationId || process.env.DEFAULT_ORGANIZATION_ID || '';
+      organizationId ||
+      process.env.DEFAULT_ORGANIZATION_ID ||
+      '';
 
     return headers;
   }
 
-  
+  // ───────────────────────────────────────────────────────────────────────────
+  // REFRESH TOKEN
+  // ───────────────────────────────────────────────────────────────────────────
 
   private async refreshSystemToken(): Promise<string | null> {
+    const clientId = process.env.CLIENT_ID;
+
+    const clientSecret =
+      process.env.CLIENT_SECRET;
+
+    const refreshToken =
+      this.systemRefreshToken ||
+      process.env.SYSTEM_REFRESH_TOKEN;
+
+    const staticToken =
+      process.env.SYSTEM_ACCESS_TOKEN;
+
+    if (staticToken && !refreshToken && !clientId) {
+      this.systemAccessToken = staticToken;
+      return staticToken;
+    }
+
+    if (
+      !clientId &&
+      !clientSecret &&
+      !refreshToken
+    ) {
+      return null;
+    }
+
     try {
-      const refreshToken = this.systemRefreshToken || process.env.SYSTEM_REFRESH_TOKEN;
       let res: any;
+
       if (refreshToken) {
-        res = await axios.post(`${this.authBaseUrl}api/auth/oauth2/token`,
+        res = await axios.post(
+          `${this.authBaseUrl}api/auth/oauth2/token`,
           {
             grant_type: 'refresh_token',
             refresh_token: refreshToken,
-            client_id: process.env.CLIENT_ID || '',
-            client_secret: process.env.CLIENT_SECRET || '',
+            client_id: clientId || '',
+            client_secret: clientSecret || '',
           },
-          { timeout: 8000 },
+          {
+            timeout: 8000,
+          },
         );
       } else {
-        res = await axios.post(`${this.authBaseUrl}api/auth/oauth2/token`,
+        res = await axios.post(
+          `${this.authBaseUrl}api/auth/oauth2/token`,
           {
             grant_type: 'client_credentials',
-            client_id: process.env.CLIENT_ID || '',
-            client_secret: process.env.CLIENT_SECRET || '',
+            client_id: clientId || '',
+            client_secret: clientSecret || '',
           },
-          { timeout: 8000 },
+          {
+            timeout: 8000,
+          },
         );
       }
 
       const data = res.data;
-      this.systemAccessToken = data?.access_token || data?.accessToken || data?.token || null;
+
+      this.systemAccessToken =
+        data?.access_token ||
+        data?.accessToken ||
+        data?.token ||
+        null;
 
       return this.systemAccessToken;
     } catch (oauthError: any) {
-      this.logger.error(
-        `OAuth2 falló: ${oauthError.response?.data?.error || oauthError.message}`,
+      this.logger.warn(
+        `OAuth2 falló obteniendo token: ${oauthError.response?.data?.error ||
+        oauthError.message
+        }`,
       );
 
+      return null;
     }
   }
 
-
-  /**
-   * Ejecuta un request HTTP con reintentos automáticos y backoff exponencial.
-   * Solo reintenta en errores de red o respuestas 5xx (errores transitorios).
-   */
   private async requestWithRetry<T>(
     config: AxiosRequestConfig,
     retries = 3,
     delayMs = 1000,
   ): Promise<AxiosResponse<T>> {
-    // Inyectar token si no viene en el config
-    if (!config.headers?.['Authorization']) {
-      const token = this.systemAccessToken || process.env.SYSTEM_ACCESS_TOKEN;
+    /*if (!config.headers?.['Authorization']) {
+      const token =
+        this.systemAccessToken ||
+        process.env.SYSTEM_ACCESS_TOKEN;
+
       if (token) {
         config.headers = {
           ...config.headers,
           Authorization: `Bearer ${token}`,
         };
       }
-    }
+    }*/
 
     try {
       return await this.rhClient.request<T>(config);
     } catch (error: any) {
       const isTransient =
         !error.response ||
-        (error.response.status >= 500 && error.response.status <= 599);
+        (error.response.status >= 500 &&
+          error.response.status <= 599);
 
       if (isTransient && retries > 0) {
         this.logger.warn(
-          `Request ${config.url} falló — reintentando en ${delayMs}ms (${retries} intentos restantes)`,
+          `Request ${config.url} falló — retry en ${delayMs}ms (${retries} restantes)`,
         );
-        await new Promise((r) => setTimeout(r, delayMs));
-        return this.requestWithRetry<T>(config, retries - 1, delayMs * 2);
+
+        await new Promise((r) =>
+          setTimeout(r, delayMs),
+        );
+
+        return this.requestWithRetry<T>(
+          config,
+          retries - 1,
+          delayMs * 2,
+        );
       }
 
       const statusCode =
-        error.response?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
-      const errorMessage =
-        error.response?.data?.message || error.message || 'Error HTTP';
+        error.response?.status ??
+        HttpStatus.INTERNAL_SERVER_ERROR;
 
-      this.logger.error(`HTTP ${statusCode} — ${errorMessage} [${config.url}]`);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Error HTTP';
+
+      this.logger.error(
+        `HTTP ${statusCode} — ${errorMessage} [${config.url}]`,
+      );
 
       throw new HttpException(
         {
@@ -398,21 +691,80 @@ export class IntegrationService {
     }
   }
 
-  private transformCategory(item: any): InternalModel {
-    const id = item.id || item.categoryId || item.id_cat || item._id || '';
-    const name = item.name || item.categoryName || item.desc_cat || item.nombre || 'Sin nombre';
-    return { id: String(id), name: String(name) };
+  // ───────────────────────────────────────────────────────────────────────────
+  // TRANSFORMERS
+  // ───────────────────────────────────────────────────────────────────────────
+
+  private transformCategory(
+    item: any,
+  ): InternalModel {
+    const id =
+      item.id ||
+      item.categoryId ||
+      item.id_cat ||
+      item._id ||
+      '';
+
+    const name =
+      item.name ||
+      item.categoryName ||
+      item.desc_cat ||
+      item.nombre ||
+      'Sin nombre';
+
+    return {
+      id: String(id),
+      name: String(name),
+    };
   }
 
-  private transformStaff(item: any): InternalModel {
-    const id = item.id || item.staffId || item.id_personal || item._id || '';
-    let name = item.name || item.fullName || item.nombre || item.nombreCompleto || '';
-    return { id: String(id), name: name.trim() || 'Colaborador sin nombre' };
+  private transformStaff(
+    item: any,
+  ): InternalModel {
+    const id =
+      item.id ||
+      item.staffId ||
+      item.id_personal ||
+      item._id ||
+      '';
+
+    const name =
+      item.name ||
+      item.fullName ||
+      item.nombre ||
+      item.nombreCompleto ||
+      '';
+
+    return {
+      id: String(id),
+      name:
+        name.trim() ||
+        'Colaborador sin nombre',
+    };
   }
 
-  private transformArea(item: any): InternalModel {
-    const id = item.id || item.areaId || item.id_area || item._id || '';
-    const name = item.name || item.areaName || item.nombre_area || item.nombre || 'Área sin nombre';
-    return { id: String(id), name: String(name) };
+  private transformArea(
+    item: any,
+  ): InternalModel {
+    const id =
+      item.value ||
+      item.id ||
+      item.areaId ||
+      item.id_area ||
+      item._id ||
+      '';
+
+    const name =
+      item.label ||
+      item.name ||
+      item.areaName ||
+      item.nombre_area ||
+      item.nombre ||
+      'Área sin nombre';
+
+    return {
+      id: String(id),
+      name: String(name),
+    };
   }
 }
