@@ -14,13 +14,13 @@ export class AssetTypesController {
 
   @Post('/create-asset-type')
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createAssetTypeDto: CreateAssetTypeDto, @Req() req: Request) {
+  create(@Body() createAssetTypeDto: CreateAssetTypeDto) {
     return this.assetTypesService.create(createAssetTypeDto);
   }
 
   @Get('/find-all')
   @HttpCode(HttpStatus.OK)
-  findAll(@Query() query: QueryAssetTypeDto, @Req() req: Request) {
+  findAll(@Query() query: QueryAssetTypeDto) {
     return this.assetTypesService.findAll(query);
   }
 
@@ -28,13 +28,9 @@ export class AssetTypesController {
   @HttpCode(HttpStatus.OK)
   findOne(
     @Param('id') id: string,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
     return this.assetTypesService.findOne(
-      id,
-      prisma,
+      id
     );
   }
 
@@ -43,14 +39,10 @@ export class AssetTypesController {
   update(
     @Param('id') id: string,
     @Body() updateAssetTypeDto: UpdateAssetTypeDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
     return this.assetTypesService.update(
       id,
-      updateAssetTypeDto,
-      prisma,
+      updateAssetTypeDto
     );
   }
 
@@ -59,14 +51,10 @@ export class AssetTypesController {
   changeStatus(
     @Param('id') id: string,
     @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'DELETED',
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
     return this.assetTypesService.changeStatus(
       id,
-      status,
-      prisma,
+      status
     );
   }
 }

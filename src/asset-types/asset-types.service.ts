@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
-import { PrismaClient, Status } from '@prisma/client';
+import {  Status } from '@prisma/client';
 import { QueryAssetTypeDto } from './dto/query-asset-type.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -95,9 +95,8 @@ export class AssetTypesService {
 
   async findOne(
     id: string,
-    prisma: PrismaClient,
   ) {
-    const assetType = await prisma.assetType.findUnique({
+    const assetType = await this.prisma.assetType.findUnique({
       where: {
         id,
       },
@@ -120,9 +119,8 @@ export class AssetTypesService {
   async update(
     id: string,
     updateAssetTypeDto: UpdateAssetTypeDto,
-    prisma: PrismaClient,
   ) {
-    const existing = await prisma.assetType.findUnique({
+    const existing = await this.prisma.assetType.findUnique({
       where: {
         id,
       },
@@ -134,7 +132,7 @@ export class AssetTypesService {
       );
     }
 
-    const updatedAssetType = await prisma.assetType.update({
+    const updatedAssetType = await this.prisma.assetType.update({
       where: {
         id,
       },
@@ -151,10 +149,9 @@ export class AssetTypesService {
 
   async changeStatus(
     id: string,
-    status: Status,
-    prisma: PrismaClient,
+    status: Status
   ) {
-    const existing = await prisma.assetType.findUnique({
+    const existing = await this.prisma.assetType.findUnique({
       where: { id },
     });
 
@@ -162,7 +159,7 @@ export class AssetTypesService {
       throw new NotFoundException('Asset type not found');
     }
 
-    return prisma.assetType.update({
+    return this.prisma.assetType.update({
       where: { id },
       data: { status },
     });
