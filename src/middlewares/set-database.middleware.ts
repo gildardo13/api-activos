@@ -21,12 +21,48 @@ export interface AppRequest extends Request {
 
 @Injectable()
 export class SetDatabaseMiddleware implements NestMiddleware {
+  
   constructor(
     private readonly prismaMultiService: PrismaMultiService,
     private readonly integrationService: IntegrationService,
   ) { }
 
   async use(req: AppRequest, res: Response, next: NextFunction) {
+    const urlAuth = process.env.CONTROL_ACTIVOS_ENV === "prod"
+      ? process.env.CONTROL_ACTIVOS_AUTH_BACK_PROD
+      : process.env.CONTROL_ACTIVOS_AUTH_BACK_DEV;
+
+
+    if (process.env.CONTROL_ACTIVOS_ENV === 'dev') {
+      let empresa = (req.headers['empresa'] as string | undefined) || (req.headers['organizationid'] as string | undefined);
+      if (!empresa) {
+        if (process.env.DATABASE_URL) {
+          const match = process.env.DATABASE_URL.match(/\/([^/]+)_activos/);
+          if (match) {
+            empresa = match[1];
+          }
+        }
+        if (!empresa) {
+          empresa = '60uqgXu63l6AqKyXscLkqHBXl7IJLU7Z'; // Fallback
+        }
+      }
+
+      const prisma = await this.prismaMultiService.getClientForCompany(empresa);
+
+      req.prisma = prisma;
+      req.empresa = empresa;
+      req.accessToken = 'dev-mock-token-xyz-123';
+      req.userInfo = {
+        sub: 'dev-mock-user-id',
+        organization: {
+          id: empresa,
+          slug: 'dev-mock-organization',
+        },
+      } as any;
+
+      return next();
+    }
+
     try {
       /* ----------------------------------------------------
       * ADMIN → Control Activos
@@ -36,7 +72,7 @@ export class SetDatabaseMiddleware implements NestMiddleware {
 
       if (adminSession) {
         const adminRes = await fetch(
-          `${process.env.AUTH_URL}/api/auth/oauth2/userinfo`,
+          `${urlAuth}/api/auth/oauth2/userinfo`,
           {
             headers: {
               Authorization: `Bearer ${adminSession}`,
@@ -98,7 +134,7 @@ export class SetDatabaseMiddleware implements NestMiddleware {
       }
 
       const userinfoRes = await fetch(
-        `${process.env.AUTH_URL}/api/auth/oauth2/userinfo`,
+        `${urlAuth}/api/auth/oauth2/userinfo`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
