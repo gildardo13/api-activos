@@ -38,8 +38,8 @@ async function bootstrap() {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'empresa', 'systemkey'],
-    exposedHeaders: ['x-new-access-token'], // si aún lo usas
+    allowedHeaders: ['Content-Type', 'Authorization', 'empresa', 'systemkey', 'organizationid', 'X-Is-Development'],
+    exposedHeaders: ['x-new-access-token', 'X-Is-Development'], // si aún lo usas
   });
 
   const config = new DocumentBuilder()

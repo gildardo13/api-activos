@@ -45,21 +45,12 @@ export class IntegrationService implements OnApplicationBootstrap {
     // ────────────────────────────────────────────────────────────────────────
     // RH BACKEND URL
     // ────────────────────────────────────────────────────────────────────────
-    const rhBaseUrl =
-      process.env.RH_BACK_PROD ||
-      process.env.EXTERNAL_RH_API_URL ||
-      (isProd
-        ? process.env.CONTROL_ACTIVOS_BACK_PROD
-        : isTest
-          ? process.env.CONTROL_ACTIVOS_BACK_TEST
-          : process.env.CONTROL_ACTIVOS_BACK_DEV) ||
-      'http://localhost:2001/';
+    const rhBaseUrl = isProd ? process.env.RH_BACK_PROD : process.env.RH_BACK_DEV;
 
     // ────────────────────────────────────────────────────────────────────────
     // AUTH BACKEND URL
     // ────────────────────────────────────────────────────────────────────────
     this.authBaseUrl =
-      process.env.EXTERNAL_AUTH_API_URL ||
       (isProd
         ? process.env.CONTROL_ACTIVOS_AUTH_BACK_PROD
         : isTest
@@ -147,6 +138,10 @@ export class IntegrationService implements OnApplicationBootstrap {
    * Trigger manual bootstrap sync
    */
   async triggerBootstrapSync(sessionToken: string, organizationId: string): Promise<void> {
+    if (sessionToken === 'dev-mock-token-xyz-123' || (sessionToken && sessionToken.startsWith('dev-mock-token'))) {
+      this.logger.log('Bypassing triggerBootstrapSync because token is mock.');
+      return;
+    }
     const countRes = await this.rhClient.get('/staff/count/staff', {
       headers: this.buildHeaders(
         this.systemAccessToken,
