@@ -7,12 +7,15 @@ import {
 import { PrismaClient } from '@prisma/client';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AssetsService {
-  async create(dto: CreateAssetDto, prisma: PrismaClient) {
+  constructor(private prisma: PrismaService) {}
+  async create(dto: CreateAssetDto) {
+
     // 1. validar assetType existe
-    const assetType = await prisma.assetType.findUnique({
+    const assetType = await this.prisma.assetType.findUnique({
       where: { id: dto.assetTypeId },
     });
 
@@ -21,7 +24,7 @@ export class AssetsService {
     }
 
     // 2. validar code único
-    const existing = await prisma.asset.findFirst({
+    const existing = await this.prisma.asset.findFirst({
       where: {
         code: dto.code,
       },
@@ -32,7 +35,7 @@ export class AssetsService {
     }
 
     // 3. crear asset
-    return prisma.asset.create({
+    return this.prisma.asset.create({
       data: {
         assetTypeId: dto.assetTypeId,
         code: dto.code,
@@ -47,8 +50,8 @@ export class AssetsService {
     });
   }
 
-  async findAll(prisma: PrismaClient) {
-    return prisma.asset.findMany({
+  async findAll() {
+    return this.prisma.asset.findMany({
       include: {
         assetType: true,
         assetTelemetryLogs: true,
@@ -62,8 +65,8 @@ export class AssetsService {
     });
   }
 
-  async findOne(id: string, prisma: PrismaClient) {
-    const asset = await prisma.asset.findUnique({
+  async findOne(id: string) {
+    const asset = await this.prisma.asset.findUnique({
       where: { id },
       include: {
         assetType: true,
@@ -81,8 +84,8 @@ export class AssetsService {
     return asset;
   }
 
-  async update(id: string, dto: UpdateAssetDto, prisma: PrismaClient) {
-    const existing = await prisma.asset.findUnique({
+  async update(id: string, dto: UpdateAssetDto) {
+    const existing = await this.prisma.asset.findUnique({
       where: { id },
     });
 
@@ -92,7 +95,7 @@ export class AssetsService {
 
     // si cambian code, validar duplicado
     if (dto.code) {
-      const duplicate = await prisma.asset.findFirst({
+      const duplicate = await this.prisma.asset.findFirst({
         where: {
           id: { not: id },
           code: dto.code,
@@ -104,7 +107,7 @@ export class AssetsService {
       }
     }
 
-    return prisma.asset.update({
+    return this.prisma.asset.update({
       where: { id },
       data: dto,
       include: {
@@ -113,8 +116,8 @@ export class AssetsService {
     });
   }
 
-  async remove(id: string, prisma: PrismaClient) {
-    const existing = await prisma.asset.findUnique({
+  async remove(id: string) {
+    const existing = await this.prisma.asset.findUnique({
       where: { id },
     });
 
@@ -122,7 +125,7 @@ export class AssetsService {
       throw new NotFoundException('Asset not found');
     }
 
-    await prisma.asset.delete({
+    await this.prisma.asset.delete({
       where: { id },
     });
 
@@ -135,22 +138,21 @@ export class AssetsService {
   async changeStatus(
     id: string,
     status: 'ACTIVE' | 'INACTIVE' | 'DELETED',
-    prisma: PrismaClient,
   ) {
-    const asset = await prisma.asset.findUnique({ where: { id } });
+    const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Asset not found');
 
-    return prisma.asset.update({
+    return this.prisma.asset.update({
       where: { id },
       data: { status },
     });
   }
 
-  async createNewAsset(dto: any, prisma: PrismaClient) {
-    const { assetTypeId, data_fields, file_fields } = dto;
+  /*async createNewAsset(dto: CreateAssetDto) {
+    const { assetTypeId } = dto;
 
     // 1. validar assetType
-    const assetType = await prisma.assetType.findUnique({
+    const assetType = await this.prisma.assetType.findUnique({
       where: { id: assetTypeId },
       include: { assetFieldDefinitions: true },
     });
@@ -221,7 +223,7 @@ export class AssetsService {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const asset = await tx.asset.create({
         data: {
           assetTypeId,
@@ -248,5 +250,5 @@ export class AssetsService {
 
       return asset;
     });
-  }
+  }*/
 }

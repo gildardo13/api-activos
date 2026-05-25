@@ -1,11 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAssetFieldDefinitionDto, FieldType } from './dto/create-asset-field-definition.dto';
 import { UpdateAssetFieldDefinitionDto } from './dto/update-asset-field-definition.dto';
-import { PrismaClient } from '@prisma/client';
+
+import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryAssetFieldDefinitionDto } from './dto/query-asset-field.dto';
 
 @Injectable()
 export class AssetFieldDefinitionsService {
-  async create(dto: CreateAssetFieldDefinitionDto, prisma: PrismaClient) {
+  constructor(private prisma: PrismaService) { }
+  async create(dto: CreateAssetFieldDefinitionDto) {
     const allowedFieldTypes = Object.values(FieldType);
 
     if (!allowedFieldTypes.includes(dto.fieldType)) {
@@ -14,7 +17,7 @@ export class AssetFieldDefinitionsService {
       );
     }
 
-    const assetType = await prisma.assetType.findUnique({
+    const assetType = await this.prisma.assetType.findUnique({
       where: { id: dto.assetTypeId },
     });
 
@@ -22,7 +25,7 @@ export class AssetFieldDefinitionsService {
       throw new BadRequestException('Asset type not found');
     }
 
-    const existing = await prisma.assetFieldDefinition.findFirst({
+    const existing = await this.prisma.assetFieldDefinition.findFirst({
       where: {
         assetTypeId: dto.assetTypeId,
         label: {
@@ -38,32 +41,97 @@ export class AssetFieldDefinitionsService {
       );
     }
 
-    return prisma.assetFieldDefinition.create({
+    return this.prisma.assetFieldDefinition.create({
       data: {
         assetTypeId: dto.assetTypeId,
         label: dto.label.trim(),
         fieldType: dto.fieldType,
+        placeholder: dto.placeholder,
         isRequired: dto.isRequired,
+        options: dto.options,
       },
     });
   }
 
-  async findAll(prisma: PrismaClient) {
-    const items = await prisma.assetFieldDefinition.findMany({
+  async findAll(query: QueryAssetFieldDefinitionDto) {
+    const {
+      page = 1,
+      limit = 10,
+      searchTerm,
+      fieldType,
+      isRequired,
+      sortByDate = 'desc',
+    } = query;
+
+    const where: any = {};
+
+    if (fieldType) {
+      where.fieldType = fieldType;
+    }
+
+    if (isRequired !== undefined) {
+      where.isRequired = isRequired;
+    }
+
+    if (searchTerm) {
+      where.OR = [
+        {
+          label: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+        {
+          fieldType: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    const shouldPaginate =
+      query.page !== undefined || query.limit !== undefined;
+
+    const prismaQuery: any = {
+      where,
       include: {
         assetType: true,
         assetDocuments: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: sortByDate,
       },
-    });
+    };
 
-    return items;
+    if (shouldPaginate) {
+      prismaQuery.skip = (page - 1) * limit;
+      prismaQuery.take = limit;
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.assetFieldDefinition.findMany(prismaQuery),
+
+      this.prisma.assetFieldDefinition.count({
+        where,
+      }),
+    ]);
+
+    return {
+      data: items,
+      meta: {
+        total,
+        page: shouldPaginate ? page : null,
+        limit: shouldPaginate ? limit : total,
+        totalPages: shouldPaginate
+          ? Math.ceil(total / limit)
+          : 1,
+      },
+    };
   }
 
-  async findByAssetType(assetTypeId: string, prisma: PrismaClient) {
-    const fields = await prisma.assetFieldDefinition.findMany({
+  async findByAssetTypeId(assetTypeId: string) {
+    const fields = await this.prisma.assetFieldDefinition.findMany({
       where: {
         assetTypeId,
       },
@@ -75,15 +143,15 @@ export class AssetFieldDefinitionsService {
     return fields.map((field) => ({
       id: field.id,
       label: field.label,
-      field_type: field.fieldType,
-      required: field.isRequired,
-      options: null,
-      placeholder: null,
+      fieldType: field.fieldType,
+      isRequired: field.isRequired,
+      placeholder: field.placeholder,
+      options: field.options,
     }));
   }
 
-  async findOne(id: string, prisma: PrismaClient) {
-    const item = await prisma.assetFieldDefinition.findUnique({
+  async findOne(id: string) {
+    const item = await this.prisma.assetFieldDefinition.findUnique({
       where: { id },
       include: {
         assetType: true,
@@ -103,9 +171,8 @@ export class AssetFieldDefinitionsService {
   async update(
     id: string,
     dto: UpdateAssetFieldDefinitionDto,
-    prisma: PrismaClient,
   ) {
-    const existing = await prisma.assetFieldDefinition.findUnique({
+    const existing = await this.prisma.assetFieldDefinition.findUnique({
       where: { id },
     });
 
@@ -116,7 +183,7 @@ export class AssetFieldDefinitionsService {
     }
 
     if (dto.label || dto.assetTypeId) {
-      const duplicate = await prisma.assetFieldDefinition.findFirst({
+      const duplicate = await this.prisma.assetFieldDefinition.findFirst({
         where: {
           id: { not: id },
           assetTypeId: dto.assetTypeId ?? existing.assetTypeId,
@@ -134,7 +201,7 @@ export class AssetFieldDefinitionsService {
       }
     }
 
-    return prisma.assetFieldDefinition.update({
+    return this.prisma.assetFieldDefinition.update({
       where: { id },
       data: {
         ...dto,
@@ -147,8 +214,8 @@ export class AssetFieldDefinitionsService {
     });
   }
 
-  async remove(id: string, prisma: PrismaClient) {
-    const existing = await prisma.assetFieldDefinition.findUnique({
+  async remove(id: string) {
+    const existing = await this.prisma.assetFieldDefinition.findUnique({
       where: { id },
     });
 
@@ -158,7 +225,7 @@ export class AssetFieldDefinitionsService {
       );
     }
 
-    await prisma.assetFieldDefinition.delete({
+    await this.prisma.assetFieldDefinition.delete({
       where: { id },
     });
 

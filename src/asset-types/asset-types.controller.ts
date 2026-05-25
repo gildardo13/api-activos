@@ -57,4 +57,10 @@ export class AssetTypesController {
       status
     );
   }
+
+  @Delete('delete-asset-type/:id')
+  @HttpCode(HttpStatus.OK)
+  deleteAssetType(@Param('id') id: string) {
+    return this.assetTypesService.deleteAssetType(id);
+  }
 }

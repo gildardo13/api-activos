@@ -1,6 +1,8 @@
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
+  IsOptional,
   IsString,
 } from 'class-validator';
 
@@ -18,6 +20,14 @@ export class CreateAssetFieldDefinitionDto {
 
   @IsString()
   label: string;
+
+  @IsString()
+  @IsOptional()
+  placeholder?: string;
+
+  @IsArray()
+  @IsOptional()
+  options?: string[];
 
   @IsEnum(FieldType)
   fieldType: FieldType;

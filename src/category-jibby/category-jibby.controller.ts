@@ -29,6 +29,7 @@ export class CategoryJibbyController {
   @Patch('/update-category/:id')
   @HttpCode(HttpStatus.OK)
   update(@Param('id') id: string, @Body() updateCategoryJibbyDto: UpdateCategoryJibbyDto) {
+    console.log(updateCategoryJibbyDto);
     return this.categoryJibbyService.update(id, updateCategoryJibbyDto);
   }
 
