@@ -73,6 +73,8 @@ model AssetFieldDefinition {
   assetTypeId String
   label String
   fieldType String
+  placeholder String?
+  options Json?
   isRequired Boolean
   
   assetDocuments AssetDocument[]
@@ -182,7 +184,7 @@ model Project{
   name String
   code String
   status Status @default(ACTIVE)
-  typeId String
+  typeId String?
 
   assetAssignments AssetAssignment[]
 

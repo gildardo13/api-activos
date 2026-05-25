@@ -14,62 +14,49 @@ import {
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
-import { PrismaClient } from '@prisma/client';
 
 @Controller('assets')
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) { }
 
-  @Post()
+  @Post('/create-asset')
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createAssetDto: CreateAssetDto, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetsService.create(createAssetDto, prisma);
+  create(@Body() createAssetDto: CreateAssetDto) {
+    return this.assetsService.create(createAssetDto);
   }
 
-  @Post('create-file_fields-asset')
+  /*
+  @Post('/create-file_fields-asset')
   @HttpCode(HttpStatus.CREATED)
-  createNewAsset(@Body() createNewAssetDto: CreateAssetDto, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetsService.createNewAsset(createNewAssetDto, prisma);
+  createNewAsset(@Body() createNewAssetDto: CreateAssetDto) {
+    return this.assetsService.createNewAsset(createNewAssetDto);
   }
-
-  @Get()
+  */
+  @Get("/find-all")
   @HttpCode(HttpStatus.OK)
-  findAll(@Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetsService.findAll(prisma);
+  findAll() {
+    return this.assetsService.findAll();
   }
 
-  @Get(':id')
+  @Get('/:id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetsService.findOne(id, prisma);
+  findOne(@Param('id') id: string) {
+    return this.assetsService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch('/:id')
   @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
     @Body() updateAssetDto: UpdateAssetDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetsService.update(id, updateAssetDto, prisma);
+    return this.assetsService.update(id, updateAssetDto);
   }
 
-  @Delete(':id')
+  @Delete('/:id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetsService.remove(id, prisma);
+  remove(@Param('id') id: string) {
+    return this.assetsService.remove(id);
   }
 
 
@@ -78,9 +65,7 @@ export class AssetsController {
   changeStatus(
     @Param('id') id: string,
     @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'DELETED',
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetsService.changeStatus(id, status, prisma);
+    return this.assetsService.changeStatus(id, status);
   }
 }

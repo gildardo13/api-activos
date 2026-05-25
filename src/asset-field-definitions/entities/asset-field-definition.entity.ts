@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsOptional,
@@ -23,6 +24,14 @@ export class AssetFieldDefinition {
   @IsOptional()
   @IsString()
   label?: string;
+
+  @IsOptional()
+  @IsString()
+  placeholder?: string;
+
+  @IsArray()
+  @IsOptional()
+  options?: string[];
 
   @IsOptional()
   @IsEnum(FieldType)

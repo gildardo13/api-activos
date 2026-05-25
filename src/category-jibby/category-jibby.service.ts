@@ -74,7 +74,7 @@ export class CategoryJibbyService {
       }
     });
     if (!category) {
-      throw new BadRequestException('Asset type not found');
+      throw new BadRequestException('Category not found');
     }
     return category;
   }
@@ -86,7 +86,7 @@ export class CategoryJibbyService {
       }
     })
     if (!existing) {
-      throw new BadRequestException('Asset type not found');
+      throw new BadRequestException('Category not found');
     }
     const updated = await this.prisma.jibbyCategory.update({
       where: {
@@ -104,7 +104,7 @@ export class CategoryJibbyService {
       }
     })
     if (!existing) {
-      throw new BadRequestException('Asset type not found');
+      throw new BadRequestException('Category not found');
     }
     const deleted = await this.prisma.jibbyCategory.delete({
       where: {

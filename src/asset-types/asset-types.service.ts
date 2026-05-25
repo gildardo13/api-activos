@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
-import {  Status } from '@prisma/client';
+import { Status } from '@prisma/client';
 import { QueryAssetTypeDto } from './dto/query-asset-type.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AssetTypesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
   async create(createAssetTypeDto: CreateAssetTypeDto) {
     const existing = await this.prisma.assetType.findFirst({
       where: {
@@ -26,9 +26,7 @@ export class AssetTypesService {
     return newAssetType;
   }
 
-  async findAll(
-    query: QueryAssetTypeDto,
-  ) {
+  async findAll(query: QueryAssetTypeDto) {
     const {
       page = 1,
       limit = 10,
@@ -36,8 +34,6 @@ export class AssetTypesService {
       searchTerm,
       sortByDate = 'desc',
     } = query;
-
-    const skip = (page - 1) * limit;
 
     const where: any = {};
 
@@ -62,20 +58,28 @@ export class AssetTypesService {
       ];
     }
 
+    const shouldPaginate =
+      query.page !== undefined || query.limit !== undefined;
+
+    const prismaQuery: any = {
+      where,
+      include: {
+        jibbyCategory: true,
+        assets: true,
+        assetFieldDefinitions: true,
+      },
+      orderBy: {
+        createdAt: sortByDate,
+      },
+    };
+
+    if (shouldPaginate) {
+      prismaQuery.skip = (page - 1) * limit;
+      prismaQuery.take = limit;
+    }
+
     const [items, total] = await Promise.all([
-      this.prisma.assetType.findMany({
-        where,
-        include: {
-          jibbyCategory: true,
-          assets: true,
-          assetFieldDefinitions: true,
-        },
-        orderBy: {
-          createdAt: sortByDate,
-        },
-        skip,
-        take: limit,
-      }),
+      this.prisma.assetType.findMany(prismaQuery),
 
       this.prisma.assetType.count({
         where,
@@ -86,13 +90,14 @@ export class AssetTypesService {
       data: items,
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: shouldPaginate ? page : null,
+        limit: shouldPaginate ? limit : total,
+        totalPages: shouldPaginate
+          ? Math.ceil(total / limit)
+          : 1,
       },
     };
   }
-
   async findOne(
     id: string,
   ) {
@@ -162,6 +167,20 @@ export class AssetTypesService {
     return this.prisma.assetType.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async deleteAssetType(id: string) {
+    const existing = await this.prisma.assetType.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Asset type not found');
+    }
+
+    return this.prisma.assetType.delete({
+      where: { id },
     });
   }
 }

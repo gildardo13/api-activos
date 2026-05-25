@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Query} from '@nestjs/common';
 import { AssetFieldDefinitionsService } from './asset-field-definitions.service';
 import { CreateAssetFieldDefinitionDto } from './dto/create-asset-field-definition.dto';
 import { UpdateAssetFieldDefinitionDto } from './dto/update-asset-field-definition.dto';
-import { PrismaClient } from '@prisma/client';
+import { QueryAssetFieldDefinitionDto } from './dto/query-asset-field.dto';
 
 @Controller('asset-field-definitions')
 export class AssetFieldDefinitionsController {
@@ -14,35 +14,42 @@ export class AssetFieldDefinitionsController {
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createAssetFieldDefinitionDto: CreateAssetFieldDefinitionDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
 
     return this.assetFieldDefinitionsService.create(
       createAssetFieldDefinitionDto,
-      prisma,
     );
   }
 
   @Get('/find-all')
   @HttpCode(HttpStatus.OK)
-  findAll(@Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetFieldDefinitionsService.findAll(prisma);
+  findAll(
+    @Query() query: QueryAssetFieldDefinitionDto,
+  ) {
+
+    return this.assetFieldDefinitionsService.findAll(query);
+  }
+
+  @Get('/asset-types/:id')
+  @HttpCode(HttpStatus.OK)
+  findByAssetTypeIdType(
+    @Param('id') assetTypeId: string,
+
+  ) {
+    return this.assetFieldDefinitionsService.findByAssetTypeId(
+      assetTypeId
+    );
   }
 
  
-  @Get('/asset-types/:id/fields')
+  @Get('/asset-types/:id/:fields')
   @HttpCode(HttpStatus.OK)
   findByAssetType(
     @Param('id') assetTypeId: string,
-    @Req() req: Request,
-  ) {
-    const prisma = req['prisma'] as PrismaClient;
 
-    return this.assetFieldDefinitionsService.findByAssetType(
-      assetTypeId,
-      prisma,
+  ) {
+    return this.assetFieldDefinitionsService.findByAssetTypeId(
+      assetTypeId
     );
   }
 
@@ -50,13 +57,10 @@ export class AssetFieldDefinitionsController {
   @HttpCode(HttpStatus.OK)
   findOne(
     @Param('id') id: string,
-    @Req() req: Request,
-  ) {
-    const prisma = req['prisma'] as PrismaClient;
 
+  ) {
     return this.assetFieldDefinitionsService.findOne(
       id,
-      prisma,
     );
   }
 
@@ -65,14 +69,10 @@ export class AssetFieldDefinitionsController {
   update(
     @Param('id') id: string,
     @Body() updateAssetFieldDefinitionDto: UpdateAssetFieldDefinitionDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
     return this.assetFieldDefinitionsService.update(
       id,
       updateAssetFieldDefinitionDto,
-      prisma,
     );
   }
 
@@ -80,13 +80,10 @@ export class AssetFieldDefinitionsController {
   @HttpCode(HttpStatus.OK)
   remove(
     @Param('id') id: string,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
 
     return this.assetFieldDefinitionsService.remove(
-      id,
-      prisma,
+      id
     );
   }
 }

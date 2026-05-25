@@ -10,12 +10,15 @@ export class Asset {
   id: string;
   
   @IsString()
-  assetTypeId: string;
+  @IsOptional()
+  assetTypeId?: string;
 
   @IsString()
-  code: string;
+  @IsOptional()
+  code?: string;
 
   @IsString()
+  @IsOptional()
   name: string;
 
   @IsOptional()
