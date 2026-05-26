@@ -41,6 +41,18 @@ export class AssetFieldDefinitionsController {
     );
   }
 
+  @Get('/asset-types/pagination/:id')
+  @HttpCode(HttpStatus.OK)
+  findByAssetTypeIdTypePagination(
+    @Param('id') assetTypeId: string,
+    @Query() query: QueryAssetFieldDefinitionDto,
+  ) {
+    return this.assetFieldDefinitionsService.findByAssetTypeIdPagination(
+      assetTypeId,
+      query
+    );
+  }
+
  
   @Get('/asset-types/:id/:fields')
   @HttpCode(HttpStatus.OK)

@@ -20,6 +20,12 @@ export class CategoryJibbyController {
     return this.categoryJibbyService.findAll(query);
   }
 
+  @Get('/find-all-not-pagination')
+  @HttpCode(HttpStatus.OK)
+  findAllNotPagination() {
+    return this.categoryJibbyService.findAllNotPagination();
+  }
+
   @Get('/find-one/:id')
   @HttpCode(HttpStatus.OK)  
   findOne(@Param('id') id: string) {

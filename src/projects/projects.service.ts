@@ -17,7 +17,12 @@ export class ProjectsService {
       return `El proyecto ya existe`;
     }
     const project = await this.prisma.project.create({
-      data: { ...createProjectDto, status: 'ACTIVE' },
+      data: {
+        name: createProjectDto.name,
+        code: createProjectDto.code,
+        status: 'ACTIVE',
+        typeId: createProjectDto.typeId ?? null,
+      },
     });
     return project;
   }
@@ -93,7 +98,7 @@ export class ProjectsService {
       where: {
         id,
       },
-      data: {...updateProjectDto, status: 'ACTIVE'},
+      data: { ...updateProjectDto, status: 'ACTIVE' },
     });
     return project;
   }
