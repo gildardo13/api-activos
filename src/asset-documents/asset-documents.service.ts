@@ -6,10 +6,12 @@ import {
 import { CreateAssetDocumentDto } from './dto/create-asset-document.dto';
 import { UpdateAssetDocumentDto } from './dto/update-asset-document.dto';
 import { PrismaClient } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AssetDocumentsService {
-  async create(dto: CreateAssetDocumentDto, prisma: PrismaClient) {
+  constructor(private prisma: PrismaService) {}
+  async create(dto: CreateAssetDocumentDto) {
     const fieldDefinitionId = dto.fieldDefinitionId;
     const assetId = dto.assetId;
     const fileName = dto.fileName;
@@ -23,15 +25,8 @@ export class AssetDocumentsService {
     if (!assetId) {
       throw new BadRequestException('assetId (asset_id) is required');
     }
-    if (!fileName) {
-      throw new BadRequestException('fileName (file_name) is required');
-    }
-    if (!fileUrl) {
-      throw new BadRequestException('fileUrl (file_url) is required');
-    }
-
     // 2. Validar que el activo exista
-    const asset = await prisma.asset.findUnique({
+    const asset = await this.prisma.asset.findUnique({
       where: { id: assetId },
     });
     if (!asset) {
@@ -39,7 +34,7 @@ export class AssetDocumentsService {
     }
 
     // 3. Validar que la definición de campo exista
-    const fieldDefinition = await prisma.assetFieldDefinition.findUnique({
+    const fieldDefinition = await this.prisma.assetFieldDefinition.findUnique({
       where: { id: fieldDefinitionId },
     });
     if (!fieldDefinition) {
@@ -63,7 +58,7 @@ export class AssetDocumentsService {
     }
 
     // 6. Validar documentos duplicados para esta combinación de activo y definición de campo
-    const existingDoc = await prisma.assetDocument.findFirst({
+    const existingDoc = await this.prisma.assetDocument.findFirst({
       where: {
         assetId,
         fieldDefinitionId,
@@ -76,7 +71,7 @@ export class AssetDocumentsService {
     }
 
     // 7. Crear el documento
-    return prisma.assetDocument.create({
+    return this.prisma.assetDocument.create({
       data: {
         assetId,
         fieldDefinitionId,
@@ -87,8 +82,8 @@ export class AssetDocumentsService {
     });
   }
 
-  async findAll(prisma: PrismaClient) {
-    return prisma.assetDocument.findMany({
+  async findAll() {
+    return this.prisma.assetDocument.findMany({
       include: {
         asset: true,
         assetFieldDefinition: true,
@@ -99,8 +94,8 @@ export class AssetDocumentsService {
     });
   }
 
-  async findOne(id: string, prisma: PrismaClient) {
-    const document = await prisma.assetDocument.findUnique({
+  async findOne(id: string) {
+    const document = await this.prisma.assetDocument.findUnique({
       where: { id },
       include: {
         asset: true,
@@ -115,8 +110,8 @@ export class AssetDocumentsService {
     return document;
   }
 
-  async update(id: string, dto: UpdateAssetDocumentDto, prisma: PrismaClient) {
-    const existing = await prisma.assetDocument.findUnique({
+  async update(id: string, dto: UpdateAssetDocumentDto) {
+    const existing = await this.prisma.assetDocument.findUnique({
       where: { id },
     });
 
@@ -135,14 +130,14 @@ export class AssetDocumentsService {
       fieldDefinitionId !== existing.fieldDefinitionId ||
       assetId !== existing.assetId
     ) {
-      const asset = await prisma.asset.findUnique({
+      const asset = await this.prisma.asset.findUnique({
         where: { id: assetId },
       });
       if (!asset) {
         throw new NotFoundException(`Asset with ID ${assetId} not found`);
       }
 
-      const fieldDefinition = await prisma.assetFieldDefinition.findUnique({
+      const fieldDefinition = await this.prisma.assetFieldDefinition.findUnique({
         where: { id: fieldDefinitionId },
       });
       if (!fieldDefinition) {
@@ -163,7 +158,7 @@ export class AssetDocumentsService {
         );
       }
 
-      const duplicate = await prisma.assetDocument.findFirst({
+      const duplicate = await this.prisma.assetDocument.findFirst({
         where: {
           id: { not: id },
           assetId,
@@ -177,7 +172,7 @@ export class AssetDocumentsService {
       }
     }
 
-    return prisma.assetDocument.update({
+    return this.prisma.assetDocument.update({
       where: { id },
       data: {
         fieldDefinitionId,
@@ -189,8 +184,8 @@ export class AssetDocumentsService {
     });
   }
 
-  async remove(id: string, prisma: PrismaClient) {
-    const existing = await prisma.assetDocument.findUnique({
+  async remove(id: string) {
+    const existing = await this.prisma.assetDocument.findUnique({
       where: { id },
     });
 
@@ -198,7 +193,7 @@ export class AssetDocumentsService {
       throw new NotFoundException(`Asset document with ID ${id} not found`);
     }
 
-    await prisma.assetDocument.delete({
+    await this.prisma.assetDocument.delete({
       where: { id },
     });
 
@@ -207,8 +202,8 @@ export class AssetDocumentsService {
     };
   }
 
-  async validateRequiredDocuments(assetId: string, prisma: PrismaClient) {
-    const asset = await prisma.asset.findUnique({
+  async validateRequiredDocuments(assetId: string) {
+    const asset = await this.prisma.asset.findUnique({
       where: { id: assetId },
       include: {
         assetType: {
