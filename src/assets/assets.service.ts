@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -44,9 +44,19 @@ export class AssetsService {
         description: dto.description,
         status: dto.status,
         lastLocation: dto.lastLocation,
+        attributesData: dto.attributesData as Prisma.InputJsonValue,
       },
       include: {
         assetType: true,
+      },
+    });
+  }
+
+  async updateAttributesAsset(id: string, updateAssetDto: any) {
+    return this.prisma.asset.update({
+      where: { id },
+      data: {
+        attributesData: updateAssetDto,
       },
     });
   }
@@ -191,12 +201,16 @@ export class AssetsService {
     }
 
     return this.prisma.asset.update({
-      where: { id },
-      data: dto,
-      include: {
-        assetType: true,
-      },
-    });
+    where: { id },
+    data: {
+      name: dto.name,
+      code: dto.code,
+      description: dto.description,
+      status: dto.status,
+      lastLocation: dto.lastLocation,
+      attributesData: dto.attributesData as Prisma.InputJsonValue,
+    },
+  });
   }
 
   async remove(id: string) {

@@ -27,6 +27,15 @@ export class AssetsController {
     return this.assetsService.create(createAssetDto);
   }
 
+  @Patch('/update-attributes-data')
+  @HttpCode(HttpStatus.OK)
+  updateAttributesAsset(
+    @Param('id') id: string,
+    @Body() updateAssetDto: any,
+  ) {
+    return this.assetsService.updateAttributesAsset(id, updateAssetDto);
+  }
+
   /*
   @Post('/create-file_fields-asset')
   @HttpCode(HttpStatus.CREATED)

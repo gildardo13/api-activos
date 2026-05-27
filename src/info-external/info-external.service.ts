@@ -34,6 +34,18 @@ export class InfoExternalService {
     return areas;
   }
 
+  async getStaffByIdArea(idArea: string) {
+    const staff = await this.prisma.rhStaff.findMany({
+      where: {
+        idArea: idArea,
+      },
+      include: {
+        _count: true,
+      },
+    });
+    return staff;
+  }
+
 
 
 }

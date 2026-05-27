@@ -32,4 +32,7 @@ export class Asset {
   @IsOptional()
   @IsString()
   lastLocation?: string;
+
+  @IsOptional()
+  attributesData?: Record<string, unknown>;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get} from '@nestjs/common';
+import { Controller, Get, Param} from '@nestjs/common';
 import { InfoExternalService } from './info-external.service';
 
 @Controller('info-external')
@@ -17,6 +17,11 @@ export class InfoExternalController {
   @Get('/getAreas')
   getAreas() {
     return this.infoExternalService.getAreasRh();
+  }
+
+  @Get('/getStaffByIdArea/:id')
+  getStaffByIdArea(@Param('id') id: string) {
+    return this.infoExternalService.getStaffByIdArea(id);
   }
 
 }
