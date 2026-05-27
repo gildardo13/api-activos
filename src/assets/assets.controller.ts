@@ -9,11 +9,13 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Query,
 } from '@nestjs/common';
 
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { QueryAssetsDto } from './dto/query-asset.dto';
 
 @Controller('assets')
 export class AssetsController {
@@ -25,6 +27,15 @@ export class AssetsController {
     return this.assetsService.create(createAssetDto);
   }
 
+  @Patch('/update-attributes-data')
+  @HttpCode(HttpStatus.OK)
+  updateAttributesAsset(
+    @Param('id') id: string,
+    @Body() updateAssetDto: any,
+  ) {
+    return this.assetsService.updateAttributesAsset(id, updateAssetDto);
+  }
+
   /*
   @Post('/create-file_fields-asset')
   @HttpCode(HttpStatus.CREATED)
@@ -34,8 +45,8 @@ export class AssetsController {
   */
   @Get("/find-all")
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.assetsService.findAll();
+  findAll(@Query() query: QueryAssetsDto) {
+    return this.assetsService.findAll(query);
   }
 
   @Get('/:id')

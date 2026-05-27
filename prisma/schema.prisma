@@ -39,6 +39,7 @@ model Asset {
   description String?
   status Status @default(ACTIVE)
   lastLocation String?
+  attributesData Json?
 
   assetTelemetryLogs  AssetTelemetryLog[]
   assetDocuments AssetDocument[]
@@ -143,14 +144,20 @@ model JibbyCategory {
   assetTypes      AssetType[]
 }
 model RhStaff {
-  id String @id @default(uuid())
-  name String
+  id     String  @id @default(uuid())
+  name   String
+
+  idArea String?
+  area   RhArea? @relation(fields: [idArea], references: [id])
 
   assetAssignments AssetAssignment[]
 }
+
 model RhArea {
-  id String @id @default(uuid())
+  id   String @id @default(uuid())
   name String
+
+  staffs RhStaff[]
 
   assetAssignments AssetAssignment[]
 }

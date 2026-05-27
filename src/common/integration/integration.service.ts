@@ -19,6 +19,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export interface InternalModel {
   id: string;
   name: string;
+  idArea?: string | null;
 }
 
 @Injectable()
@@ -142,28 +143,43 @@ export class IntegrationService implements OnApplicationBootstrap {
       this.logger.log('Bypassing triggerBootstrapSync because token is mock.');
       return;
     }
-    const countRes = await this.rhClient.get('/staff/count/staff', {
-      headers: this.buildHeaders(
-        this.systemAccessToken,
-        organizationId
-      ),
-    });
-    const expected = countRes.data?.staffActive || 0;
+    // Ponemos TODO el proceso en un bloque try/catch para que NUNCA tire el servidor si la API externa falla
+    try {
+      const countRes = await this.requestWithRetry<{ staffActive: number }>({
+        method: 'GET',
+        url: '/staff/count/staff',
+        headers: this.buildHeaders(
+          this.systemAccessToken,
+          organizationId,
+        ),
+      });
 
-    const dbCount = await this.prisma.rhStaff.count();
+      const expected = countRes.data?.staffActive || 0;
+      const dbCount = await this.prisma.rhStaff.count();
 
-    const isSynced = dbCount >= expected;
-    this.hasSynced = isSynced;
+      const isSynced = dbCount >= expected;
+      this.hasSynced = isSynced;
 
-    if (this.hasSynced) return;
+      if (this.hasSynced) {
+        this.logger.log('El conteo local coincide con el de la API externa. Sincronización omitida.');
+        return;
+      }
 
-    this.systemAccessToken = sessionToken;
+      this.systemAccessToken = sessionToken;
 
-    this._runSync().catch((err) =>
+      // Ejecutamos la sincronización real controlando el error internamente
+      await this._runSync();
+
+    } catch (err: any) {
+      // Capturamos el Axios / HttpException aquí. 
+      // El servidor se mantendrá vivo y registrará el error de manera limpia.
       this.logger.error(
-        `Error en sync lazy RH: ${err.message}`,
-      ),
-    );
+        `No se pudo completar el bootstrap de integración (API Externa inaccesible o Timeout): ${err.message}`,
+      );
+
+      // Reiniciamos el flag para permitir que un intento posterior vuelva a probar
+      this.hasSynced = false;
+    }
   }
 
   private async _runSync(): Promise<void> {
@@ -264,10 +280,13 @@ export class IntegrationService implements OnApplicationBootstrap {
         i.nombre ??
         i.nombreCompleto ??
         'Sin nombre';
+      const idArea =
+        i?.position?.area?.id ?? null;
 
       return {
         id: id ? String(id).trim() : null,
         name: String(name).trim(),
+        idArea: idArea ? String(idArea).trim() : null,
       };
     });
 
@@ -297,9 +316,11 @@ export class IntegrationService implements OnApplicationBootstrap {
           create: {
             id: staff.id,
             name: staff.name,
+            idArea: staff.idArea ?? null,
           },
           update: {
             name: staff.name,
+            idArea: staff.idArea ?? null,
           },
         });
       }
@@ -382,6 +403,7 @@ export class IntegrationService implements OnApplicationBootstrap {
     return rows.map((r: any) => ({
       id: r.id,
       name: r.name,
+      idArea: r.position.area.id || null,
     }));
   }
 
@@ -707,9 +729,12 @@ export class IntegrationService implements OnApplicationBootstrap {
       item.nombre ||
       'Sin nombre';
 
+    const idArea = item.position?.area?.id || null;
+
     return {
       id: String(id),
       name: String(name),
+      idArea,
     };
   }
 

@@ -23,31 +23,26 @@ export class AssetDocumentsController {
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createAssetDocumentDto: CreateAssetDocumentDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetDocumentsService.create(createAssetDocumentDto, prisma);
+    return this.assetDocumentsService.create(createAssetDocumentDto);
   }
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  findAll(@Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetDocumentsService.findAll(prisma);
+  findAll() {
+    return this.assetDocumentsService.findAll();
   }
 
   @Get('validate-required/:assetId')
   @HttpCode(HttpStatus.OK)
-  validateRequired(@Param('assetId') assetId: string, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetDocumentsService.validateRequiredDocuments(assetId, prisma);
+  validateRequired(@Param('assetId') assetId: string) {
+    return this.assetDocumentsService.validateRequiredDocuments(assetId);
   }
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetDocumentsService.findOne(id, prisma);
+  findOne(@Param('id') id: string) {
+    return this.assetDocumentsService.findOne(id);
   }
 
   @Patch(':id')
@@ -55,16 +50,13 @@ export class AssetDocumentsController {
   update(
     @Param('id') id: string,
     @Body() updateAssetDocumentDto: UpdateAssetDocumentDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetDocumentsService.update(id, updateAssetDocumentDto, prisma);
+    return this.assetDocumentsService.update(id, updateAssetDocumentDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetDocumentsService.remove(id, prisma);
+  remove(@Param('id') id: string) {
+    return this.assetDocumentsService.remove(id);
   }
 }

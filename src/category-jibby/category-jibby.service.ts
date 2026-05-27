@@ -25,6 +25,7 @@ export class CategoryJibbyService {
 
     return newCategory;
   }
+  
 
   async findAll(query: QueryCategoryJibbyDto) {
     const {
@@ -35,36 +36,52 @@ export class CategoryJibbyService {
     } = query;
 
     const skip = (page - 1) * limit;
+
     const where: any = {};
 
-    if (searchTerm) {
-      where.name = {
-        contains: searchTerm,
-        mode: 'insensitive',
-      }
+    // ── Búsqueda ─────────────────────────────────────
+    if (searchTerm?.trim()) {
+      where.OR = [
+        {
+          name: {
+            contains: searchTerm.trim(),
+            mode: 'insensitive',
+          },
+        },
+      ];
     }
 
     const [total, items] = await Promise.all([
-      this.prisma.jibbyCategory.count({ where }),
+      this.prisma.jibbyCategory.count({
+        where,
+      }),
+
       this.prisma.jibbyCategory.findMany({
         where,
+
         skip,
         take: limit,
+
         orderBy: {
-          name: 'asc',
-        }
-      })
+          name: sortByDate,
+        },
+      }),
     ]);
 
     return {
       data: items,
+
       meta: {
         total,
         page,
         limit,
         totalPages: Math.ceil(total / limit),
       },
-    }
+    };
+  }
+  async findAllNotPagination() {
+    const categories = await this.prisma.jibbyCategory.findMany();
+    return categories;
   }
 
   async findOne(id: string) {

@@ -1,4 +1,6 @@
+import { Prisma } from '@prisma/client';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { isAnyArrayBuffer } from 'util/types';
 
 export enum Status {
   ACTIVE = 'ACTIVE',
@@ -27,4 +29,7 @@ export class CreateAssetDto {
   @IsOptional()
   @IsString()
   lastLocation?: string;
+
+  @IsOptional()
+  attributesData?: Prisma.InputJsonValue;
 }

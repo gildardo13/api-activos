@@ -4,14 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryAssetsDto } from './dto/query-asset.dto';
 
 @Injectable()
 export class AssetsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
   async create(dto: CreateAssetDto) {
 
     // 1. validar assetType existe
@@ -43,6 +44,7 @@ export class AssetsService {
         description: dto.description,
         status: dto.status,
         lastLocation: dto.lastLocation,
+        attributesData: dto.attributesData as Prisma.InputJsonValue,
       },
       include: {
         assetType: true,
@@ -50,19 +52,110 @@ export class AssetsService {
     });
   }
 
-  async findAll() {
-    return this.prisma.asset.findMany({
-      include: {
-        assetType: true,
-        assetTelemetryLogs: true,
-        assetDocuments: true,
-        assetGeofences: true,
-        assetAssignments: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
+  async updateAttributesAsset(id: string, updateAssetDto: any) {
+    return this.prisma.asset.update({
+      where: { id },
+      data: {
+        attributesData: updateAssetDto,
       },
     });
+  }
+
+  async findAll(query: QueryAssetsDto) {
+    const {
+      page = 1,
+      limit = 10,
+      searchTerm,
+      sortByDate = 'desc',
+      status,
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    // ── Filtro por estado ─────────────────────────────
+    if (status) {
+      where.status = status;
+    }
+
+    // ── Búsqueda ──────────────────────────────────────
+    if (searchTerm) {
+      where.OR = [
+        {
+          name: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+
+        {
+          code: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+
+        {
+          description: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+
+        {
+          lastLocation: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+
+        {
+          assetType: {
+            name: {
+              contains: searchTerm,
+              mode: 'insensitive',
+            },
+          },
+        },
+      ];
+    }
+
+    const [total, items] = await Promise.all([
+      this.prisma.asset.count({
+        where,
+      }),
+
+      this.prisma.asset.findMany({
+        where,
+
+        skip,
+        take: limit,
+
+        include: {
+          assetType: true,
+          assetTelemetryLogs: true,
+          assetDocuments: true,
+          assetGeofences: true,
+          assetAssignments: true,
+        },
+
+        orderBy: {
+          updatedAt: sortByDate,
+        },
+      }),
+    ]);
+
+    return {
+      data: items,
+
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string) {
@@ -108,12 +201,16 @@ export class AssetsService {
     }
 
     return this.prisma.asset.update({
-      where: { id },
-      data: dto,
-      include: {
-        assetType: true,
-      },
-    });
+    where: { id },
+    data: {
+      name: dto.name,
+      code: dto.code,
+      description: dto.description,
+      status: dto.status,
+      lastLocation: dto.lastLocation,
+      attributesData: dto.attributesData as Prisma.InputJsonValue,
+    },
+  });
   }
 
   async remove(id: string) {

@@ -22,6 +22,9 @@ export interface AppRequest extends Request {
 @Injectable()
 export class SetDatabaseMiddleware implements NestMiddleware {
   
+  // Cache para trackear qué usuarios ya detonaron la sincronización
+  private static syncedUsers = new Set<string>();
+
   constructor(
     private readonly prismaMultiService: PrismaMultiService,
     private readonly integrationService: IntegrationService,
@@ -101,7 +104,11 @@ export class SetDatabaseMiddleware implements NestMiddleware {
             };
 
             // Sync lazy de RH en background con el token ya validado
-            this.integrationService.triggerBootstrapSync(adminSession, empresa);
+            const userKey = `${empresa}-${user.id}`;
+            if (!SetDatabaseMiddleware.syncedUsers.has(userKey)) {
+              SetDatabaseMiddleware.syncedUsers.add(userKey);
+              this.integrationService.triggerBootstrapSync(adminSession, empresa);
+            }
 
             return next();
           }
@@ -165,7 +172,11 @@ export class SetDatabaseMiddleware implements NestMiddleware {
       req.empresa = empresa;
 
       // Sync lazy de RH en background con el token ya validado
-      this.integrationService.triggerBootstrapSync(accessToken,empresa);
+      const userKey = `${empresa}-${userinfo.user?.id || req.userInfo?.sub}`;
+      if (!SetDatabaseMiddleware.syncedUsers.has(userKey)) {
+        SetDatabaseMiddleware.syncedUsers.add(userKey);
+        this.integrationService.triggerBootstrapSync(accessToken, empresa);
+      }
 
       next();
     } catch (error) {

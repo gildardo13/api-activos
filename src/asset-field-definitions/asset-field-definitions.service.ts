@@ -150,6 +150,71 @@ export class AssetFieldDefinitionsService {
     }));
   }
 
+  async findByAssetTypeIdPagination(
+    assetTypeId: string,
+    query: QueryAssetFieldDefinitionDto,
+  ) {
+    const {
+      page = 1,
+      limit = 10,
+      searchTerm,
+      sortByDate = 'desc',
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      assetTypeId,
+    };
+
+    // ── Búsqueda ─────────────────────────────────────
+    if (searchTerm?.trim()) {
+      where.OR = [
+        {
+          label: {
+            contains: searchTerm.trim(),
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    const [total, fields] = await Promise.all([
+      this.prisma.assetFieldDefinition.count({
+        where,
+      }),
+
+      this.prisma.assetFieldDefinition.findMany({
+        where,
+
+        skip,
+        take: limit,
+
+        orderBy: {
+          createdAt: sortByDate,
+        },
+      }),
+    ]);
+
+    return {
+      data: fields.map((field) => ({
+        id: field.id,
+        label: field.label,
+        fieldType: field.fieldType,
+        isRequired: field.isRequired,
+        placeholder: field.placeholder,
+        options: field.options,
+      })),
+
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async findOne(id: string) {
     const item = await this.prisma.assetFieldDefinition.findUnique({
       where: { id },
