@@ -1,19 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateAssetGeofenceDto } from './dto/create-asset-geofence.dto';
 import { UpdateAssetGeofenceDto } from './dto/update-asset-geofence.dto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AssetGeofencesService {
+  constructor(private prisma: PrismaService) { }
 
   private validateCoordinates(coordinates: string) {
-    /**
-     * Espera formato simple tipo:
-     * "lat,lng;lat,lng;lat,lng"
-     */
-
     const points = coordinates.split(';');
-
     if (points.length < 3) {
       throw new BadRequestException(
         'A geofence must have at least 3 coordinates',
@@ -44,18 +39,17 @@ export class AssetGeofencesService {
   // CREATE
   async create(
     dto: CreateAssetGeofenceDto,
-    prisma: PrismaClient,
   ) {
     this.validateCoordinates(dto.coordinates);
 
-    const assetExist = await prisma.asset.findUnique({
+    const assetExist = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
     });
 
     if (!assetExist) {
       throw new BadRequestException('Asset not found');
     }
-    return prisma.assetGeofence.create({
+    return this.prisma.assetGeofence.create({
       data: {
         assetId: dto.assetId,
         name: dto.name,
@@ -66,8 +60,8 @@ export class AssetGeofencesService {
   }
 
   // FIND ALL
-  async findAll(prisma: PrismaClient) {
-    return prisma.assetGeofence.findMany({
+  async findAll() {
+    return this.prisma.assetGeofence.findMany({
       orderBy: {
         createdAt: 'desc',
       },
@@ -75,8 +69,8 @@ export class AssetGeofencesService {
   }
 
   // FIND ONE
-  async findOne(id: string, prisma: PrismaClient) {
-    return prisma.assetGeofence.findUnique({
+  async findOne(id: string) {
+    return this.prisma.assetGeofence.findUnique({
       where: { id },
     });
   }
@@ -84,14 +78,13 @@ export class AssetGeofencesService {
   // UPDATE
   async update(
     id: string,
-    dto: UpdateAssetGeofenceDto,
-    prisma: PrismaClient,
+    dto: UpdateAssetGeofenceDto
   ) {
     if (dto.coordinates) {
       this.validateCoordinates(dto.coordinates);
     }
 
-    return prisma.assetGeofence.update({
+    return this.prisma.assetGeofence.update({
       where: { id },
       data: {
         name: dto.name,
@@ -102,8 +95,8 @@ export class AssetGeofencesService {
   }
 
   // DELETE
-  async remove(id: string, prisma: PrismaClient) {
-    return prisma.assetGeofence.delete({
+  async remove(id: string) {
+    return this.prisma.assetGeofence.delete({
       where: { id },
     });
   }

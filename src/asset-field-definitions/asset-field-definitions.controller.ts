@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Query} from '@nestjs/common';
 import { AssetFieldDefinitionsService } from './asset-field-definitions.service';
-import { CreateAssetFieldDefinitionDto } from './dto/create-asset-field-definition.dto';
+import { CreateAssetFieldDefinitionDto} from './dto/create-asset-field-definition.dto';
 import { UpdateAssetFieldDefinitionDto } from './dto/update-asset-field-definition.dto';
 import { QueryAssetFieldDefinitionDto } from './dto/query-asset-field.dto';
 
@@ -57,8 +57,7 @@ export class AssetFieldDefinitionsController {
   @Get('/asset-types/:id/:fields')
   @HttpCode(HttpStatus.OK)
   findByAssetType(
-    @Param('id') assetTypeId: string,
-
+    @Param('id') assetTypeId: string
   ) {
     return this.assetFieldDefinitionsService.findByAssetTypeId(
       assetTypeId

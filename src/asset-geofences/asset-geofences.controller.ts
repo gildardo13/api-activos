@@ -22,63 +22,47 @@ export class AssetGeofencesController {
     private readonly assetGeofencesService: AssetGeofencesService,
   ) {}
 
-  @Post('/create')
+  @Post('')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createAssetGeofenceDto: CreateAssetGeofenceDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
     return this.assetGeofencesService.create(
-      createAssetGeofenceDto,
-      prisma,
+      createAssetGeofenceDto
     );
   }
 
-  @Get('/find-all')
+  @Get('')
   @HttpCode(HttpStatus.OK)
-  findAll(@Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetGeofencesService.findAll(prisma);
+  findAll() {
+    return this.assetGeofencesService.findAll();
   }
 
-  @Get('/find-one/:id')
+  @Get('/:id')
   @HttpCode(HttpStatus.OK)
   findOne(
-    @Param('id') id: string,
-    @Req() req: Request,
+    @Param('id') id: string
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetGeofencesService.findOne(id, prisma);
+    return this.assetGeofencesService.findOne(id);
   }
 
-  @Patch('/update/:id')
+  @Patch('/:id')
   @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
     @Body() updateAssetGeofenceDto: UpdateAssetGeofenceDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
     return this.assetGeofencesService.update(
       id,
       updateAssetGeofenceDto,
-      prisma,
     );
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   @HttpCode(HttpStatus.OK)
   remove(
-    @Param('id') id: string,
-    @Req() req: Request,
+    @Param('id') id: string
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetGeofencesService.remove(id, prisma);
+    return this.assetGeofencesService.remove(id);
   }
 }
