@@ -1,13 +1,19 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export enum AssignmentType {
+  PROJECT = 'PROJECT',
+  STAFF = 'STAFF',
+  AREA = 'AREA',
+}
 
 export class CreateAssetAssignmentDto {
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  assetId?: string;
+  assetId: string;
 
-  @IsOptional()
-  @IsString()
-  assignmentType?: string;
+  @IsNotEmpty()
+  @IsEnum(AssignmentType)
+  assignmentType: AssignmentType;
 
   @IsOptional()
   @IsString()
@@ -21,9 +27,9 @@ export class CreateAssetAssignmentDto {
   @IsString()
   areaId?: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsDateString()
-  assignedAt?: string;
+  assignedAt: string;
 
   @IsOptional()
   @IsDateString()

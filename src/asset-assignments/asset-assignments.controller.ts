@@ -9,65 +9,59 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Query,
 } from '@nestjs/common';
 
 import { AssetAssignmentsService } from './asset-assignments.service';
 import { CreateAssetAssignmentDto } from './dto/create-asset-assignment.dto';
 import { UpdateAssetAssignmentDto } from './dto/update-asset-assignment.dto';
-import { PrismaClient } from '@prisma/client';
+import { QueryAssetsAssignmentDto } from './dto/query-asset-assignment.dto';
 
 @Controller('asset-assignments')
 export class AssetAssignmentsController {
   constructor(
     private readonly assetAssignmentsService: AssetAssignmentsService,
-  ) {}
+  ) { }
 
-  @Post()
+  @Post('/create-assignment')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createAssetAssignmentDto: CreateAssetAssignmentDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
     return this.assetAssignmentsService.create(
-      createAssetAssignmentDto,
-      prisma,
+      createAssetAssignmentDto
     );
   }
 
-  @Get()
+  @Get('/find-all')
   @HttpCode(HttpStatus.OK)
-  findAll(@Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetAssignmentsService.findAll(prisma);
+  findAll(
+    @Query() query: QueryAssetsAssignmentDto
+  ) {
+    return this.assetAssignmentsService.findAll(query);
   }
 
-  @Get(':id')
+  @Get('/findOne/:id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetAssignmentsService.findOne(id, prisma);
+  findOne(@Param('id') id: string) {
+    return this.assetAssignmentsService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch('/update-assignment/:id')
   @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
     @Body() updateAssetAssignmentDto: UpdateAssetAssignmentDto,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
     return this.assetAssignmentsService.update(
       id,
-      updateAssetAssignmentDto,
-      prisma,
+      updateAssetAssignmentDto
     );
   }
 
-  @Delete(':id')
+  @Delete('/delete-assignment/:id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string, @Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-    return this.assetAssignmentsService.remove(id, prisma);
+  remove(@Param('id') id: string) {
+    return this.assetAssignmentsService.remove(id);
   }
 }
