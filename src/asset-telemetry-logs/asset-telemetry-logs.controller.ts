@@ -22,63 +22,51 @@ export class AssetTelemetryLogsController {
     private readonly assetTelemetryLogsService: AssetTelemetryLogsService,
   ) {}
 
-  @Post('/create')
+  @Post('')
   @HttpCode(HttpStatus.CREATED)
   create(
-    @Body() createAssetTelemetryLogDto: CreateAssetTelemetryLogDto,
-    @Req() req: Request,
-  ) {
-    const prisma = req['prisma'] as PrismaClient;
-
+    @Body() createAssetTelemetryLogDto: CreateAssetTelemetryLogDto ) {
     return this.assetTelemetryLogsService.create(
-      createAssetTelemetryLogDto,
-      prisma,
+      createAssetTelemetryLogDto
     );
   }
 
-  @Get('/find-all')
+  @Get('')
   @HttpCode(HttpStatus.OK)
-  findAll(@Req() req: Request) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetTelemetryLogsService.findAll(prisma);
+  findAll() {
+    return this.assetTelemetryLogsService.findAll();
   }
 
-  @Get('/find-one/:id')
+  @Get('/latest/:assetId')
+  @HttpCode(HttpStatus.OK)
+  findLatestByAssetId(@Param('assetId') assetId: string) {
+    return this.assetTelemetryLogsService.findLatestByAsset(assetId);
+  }
+
+  @Get('/:id')
   @HttpCode(HttpStatus.OK)
   findOne(
     @Param('id') id: string,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetTelemetryLogsService.findOne(id, prisma);
+    return this.assetTelemetryLogsService.findOne(id);
   }
 
-  @Patch('/update/:id')
+  @Patch('/:id')
   @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
-    @Body() updateAssetTelemetryLogDto: UpdateAssetTelemetryLogDto,
-    @Req() req: Request,
-  ) {
-    const prisma = req['prisma'] as PrismaClient;
-
+    @Body() updateAssetTelemetryLogDto: UpdateAssetTelemetryLogDto) {
     return this.assetTelemetryLogsService.update(
       id,
       updateAssetTelemetryLogDto,
-      prisma,
     );
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   @HttpCode(HttpStatus.OK)
   remove(
     @Param('id') id: string,
-    @Req() req: Request,
   ) {
-    const prisma = req['prisma'] as PrismaClient;
-
-    return this.assetTelemetryLogsService.remove(id, prisma);
+    return this.assetTelemetryLogsService.remove(id);
   }
 }
