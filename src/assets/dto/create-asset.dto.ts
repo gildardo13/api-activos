@@ -2,10 +2,10 @@ import { Prisma } from '@prisma/client';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { isAnyArrayBuffer } from 'util/types';
 
-export enum Status {
+export enum StatusAsset {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
-  DELETED = 'DELETED',
+  MAINTENANCE = 'MAINTENANCE',
 }
 
 export class CreateAssetDto {
@@ -23,8 +23,8 @@ export class CreateAssetDto {
   description?: string;
 
   @IsOptional()
-  @IsEnum(Status)
-  status?: Status;
+  @IsEnum(StatusAsset)
+  status?: StatusAsset;
 
   @IsOptional()
   @IsString()

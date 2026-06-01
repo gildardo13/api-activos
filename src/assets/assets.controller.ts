@@ -75,7 +75,7 @@ export class AssetsController {
   @HttpCode(HttpStatus.OK)
   changeStatus(
     @Param('id') id: string,
-    @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'DELETED',
+    @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
   ) {
     return this.assetsService.changeStatus(id, status);
   }
