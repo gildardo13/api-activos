@@ -55,6 +55,7 @@ export class AssetAssignmentsController {
     @Query() query: QueryHistoryAssignmentDto,
   ) {
     return this.assetAssignmentsService.findHistory(idAsset, query);
+
   }
 
   @Patch('/update-assignment/:id')

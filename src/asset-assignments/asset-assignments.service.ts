@@ -189,11 +189,15 @@ export class AssetAssignmentsService {
         rhArea: true,
       },
       orderBy: {
-        assignedAt: 'desc',
+
+        createdAt: 'desc',
       },
     });
+    if (!history || history.length === 0) {
+      return [];
+    }
+    return history;
 
-    return history ?? [];
   }
 
   async update(id: string,
