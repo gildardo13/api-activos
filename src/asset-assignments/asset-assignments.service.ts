@@ -3,6 +3,7 @@ import { CreateAssetAssignmentDto } from './dto/create-asset-assignment.dto';
 import { UpdateAssetAssignmentDto } from './dto/update-asset-assignment.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsAssignmentDto } from './dto/query-asset-assignment.dto';
+import { QueryHistoryAssignmentDto } from './dto/query-history-assignment.dto';
 
 @Injectable()
 export class AssetAssignmentsService {
@@ -146,13 +147,41 @@ export class AssetAssignmentsService {
   }
 
 
-  async findHistory(idAsset: string) {
-    const history = await this.prisma.assetAssignment.findMany({
-      where: {
-        asset: {
-          id: idAsset
+  async findHistory(idAsset: string, query?: QueryHistoryAssignmentDto) {
+    const { searchTerm, assignmentType } = query ?? {};
+
+    const where: any = {
+      assetId: idAsset,
+    };
+
+    // ── Filtro por tipo de asignación ──────────────────────────
+    if (assignmentType) {
+      where.assignmentType = assignmentType;
+    }
+
+    // ── Búsqueda por nombre del responsable ────────────────────
+    if (searchTerm) {
+      where.OR = [
+        {
+          rhStaff: {
+            name: { contains: searchTerm, mode: 'insensitive' },
+          },
         },
-      },
+        {
+          rhArea: {
+            name: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+        {
+          project: {
+            name: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    const history = await this.prisma.assetAssignment.findMany({
+      where,
       include: {
         asset: true,
         project: true,
@@ -160,14 +189,15 @@ export class AssetAssignmentsService {
         rhArea: true,
       },
       orderBy: {
+
         createdAt: 'desc',
       },
     });
     if (!history || history.length === 0) {
       return [];
     }
-
     return history;
+
   }
 
   async update(id: string,

@@ -16,6 +16,7 @@ import { AssetAssignmentsService } from './asset-assignments.service';
 import { CreateAssetAssignmentDto } from './dto/create-asset-assignment.dto';
 import { UpdateAssetAssignmentDto } from './dto/update-asset-assignment.dto';
 import { QueryAssetsAssignmentDto } from './dto/query-asset-assignment.dto';
+import { QueryHistoryAssignmentDto } from './dto/query-history-assignment.dto';
 
 @Controller('asset-assignments')
 export class AssetAssignmentsController {
@@ -49,8 +50,12 @@ export class AssetAssignmentsController {
 
   @Get('/history/:id')
   @HttpCode(HttpStatus.OK)
-  findHistory(@Param('id') idAsset: string) {
-    return this.assetAssignmentsService.findHistory(idAsset);
+  findHistory(
+    @Param('id') idAsset: string,
+    @Query() query: QueryHistoryAssignmentDto,
+  ) {
+    return this.assetAssignmentsService.findHistory(idAsset, query);
+
   }
 
   @Patch('/update-assignment/:id')

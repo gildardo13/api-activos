@@ -22,6 +22,9 @@ export class AssetsService {
     if (!assetType) {
       throw new BadRequestException('Asset type does not exist');
     }
+    if (assetType.status !== "ACTIVE") {
+      throw new BadRequestException('Asset Desactivado');
+    }
 
     // 2. Validar código único
     const existing = await this.prisma.asset.findFirst({
@@ -429,10 +432,23 @@ export class AssetsService {
 
   async changeStatus(
     id: string,
-    status: 'ACTIVE' | 'INACTIVE' | 'DELETED',
+    status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
   ) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Asset not found');
+
+    const activeAssignment = await this.prisma.assetAssignment.findFirst({
+      where: {
+        assetId: id,
+        returnedAt: null, // Si está en null, significa que no lo han devuelto
+      },
+    });
+
+    if (activeAssignment) {
+      throw new BadRequestException(
+        'No se puede cambiar el estado del activo porque tiene una asignación activa vigente sin devolver.',
+      );
+    }
 
     return this.prisma.asset.update({
       where: { id },
