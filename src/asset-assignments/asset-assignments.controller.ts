@@ -47,6 +47,12 @@ export class AssetAssignmentsController {
     return this.assetAssignmentsService.findOne(id);
   }
 
+  @Get('/history/:id')
+  @HttpCode(HttpStatus.OK)
+  findHistory(@Param('id') idAsset: string) {
+    return this.assetAssignmentsService.findHistory(idAsset);
+  }
+
   @Patch('/update-assignment/:id')
   @HttpCode(HttpStatus.OK)
   update(
