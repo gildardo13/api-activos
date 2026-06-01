@@ -145,6 +145,31 @@ export class AssetAssignmentsService {
     return assignment;
   }
 
+
+  async findHistory(idAsset: string) {
+    const history = await this.prisma.assetAssignment.findMany({
+      where: {
+        asset: {
+          id: idAsset
+        },
+      },
+      include: {
+        asset: true,
+        project: true,
+        rhStaff: true,
+        rhArea: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    if (!history || history.length === 0) {
+      return [];
+    }
+
+    return history;
+  }
+
   async update(id: string,
     dto: UpdateAssetAssignmentDto) {
     const existing = await this.prisma.assetAssignment.findUnique({
