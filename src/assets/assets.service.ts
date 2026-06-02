@@ -150,13 +150,6 @@ export class AssetsService {
         },
 
         {
-          description: {
-            contains: searchTerm,
-            mode: 'insensitive',
-          },
-        },
-
-        {
           lastLocation: {
             contains: searchTerm,
             mode: 'insensitive',

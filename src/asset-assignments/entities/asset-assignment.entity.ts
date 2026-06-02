@@ -7,6 +7,7 @@ export class AssetAssignment {
     areaId?: string;
     assignedAt: Date;
     returnedAt: Date;
+    statusReturned: string;
     createdAt: Date;
     updatedAt: Date;
 }

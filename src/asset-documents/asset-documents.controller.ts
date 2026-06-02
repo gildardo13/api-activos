@@ -9,11 +9,13 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Query,
 } from '@nestjs/common';
 import { AssetDocumentsService } from './asset-documents.service';
 import { CreateAssetDocumentDto } from './dto/create-asset-document.dto';
 import { UpdateAssetDocumentDto } from './dto/update-asset-document.dto';
 import { PrismaClient } from '@prisma/client';
+import { QueryAssetDocumentsDto } from './dto/query-asset-documents.dto';
 
 @Controller('asset-documents')
 export class AssetDocumentsController {
@@ -27,10 +29,10 @@ export class AssetDocumentsController {
     return this.assetDocumentsService.create(createAssetDocumentDto);
   }
 
-  @Get()
+  @Get('/get-all')
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.assetDocumentsService.findAll();
+  findAll( @Query() query: QueryAssetDocumentsDto) {
+    return this.assetDocumentsService.findAll(query);
   }
 
   @Get('validate-required/:assetId')

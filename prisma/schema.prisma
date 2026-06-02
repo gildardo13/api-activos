@@ -20,6 +20,12 @@ enum StatusAsset {
   MAINTENANCE
 }
 
+enum StatusReturn{
+  RETURNED
+  IN_USE
+  PENDING
+}
+
 
 enum AssignmentType {
   PROJECT
@@ -184,6 +190,7 @@ model AssetAssignment {
   areaId String?
   assignedAt DateTime
   returnedAt DateTime?
+  statusReturned StatusReturn?
 
   asset Asset @relation(fields: [assetId], references: [id])
   rhStaff RhStaff? @relation(fields: [staffId], references: [id])

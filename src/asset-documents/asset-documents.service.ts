@@ -7,10 +7,11 @@ import { CreateAssetDocumentDto } from './dto/create-asset-document.dto';
 import { UpdateAssetDocumentDto } from './dto/update-asset-document.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryAssetDocumentsDto } from './dto/query-asset-documents.dto';
 
 @Injectable()
 export class AssetDocumentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
   async create(dto: CreateAssetDocumentDto) {
     const fieldDefinitionId = dto.fieldDefinitionId;
     const assetId = dto.assetId;
@@ -82,16 +83,77 @@ export class AssetDocumentsService {
     });
   }
 
-  async findAll() {
-    return this.prisma.assetDocument.findMany({
-      include: {
-        asset: true,
-        assetFieldDefinition: true,
+  async findAll(query: QueryAssetDocumentsDto) {
+    const {
+      page = 1,
+      limit = 10,
+      searchTerm,
+      sortByDate = 'desc',
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    // ── Búsqueda ──────────────────────────────────────
+    if (searchTerm) {
+      where.OR = [
+        {
+          fileName: { // OJO: Cambié 'name' por 'fileName' si es que tu modelo usa la propiedad del primer ejemplo
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+        // Si buscas por propiedades del Asset relacionado, se anida así:
+        {
+          asset: {
+            name: {
+              contains: searchTerm,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          asset: {
+            code: {
+              contains: searchTerm,
+              mode: 'insensitive',
+            },
+          },
+        },
+      ];
+    }
+
+    // ── Ejecución en paralelo (Contador + Búsqueda) ────
+    const [total, items] = await Promise.all([
+      this.prisma.assetDocument.count({
+        where,
+      }),
+
+      this.prisma.assetDocument.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          asset: true,
+          assetFieldDefinition: true,
+        },
+        orderBy: {
+          createdAt: sortByDate, // Aquí usamos la variable dinámica de tu query
+        },
+      }),
+    ]);
+
+    // ── Respuesta formateada con Metadata ──────────────
+    return {
+      data: items,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    };
   }
 
   async findOne(id: string) {

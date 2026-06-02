@@ -6,6 +6,14 @@ export enum AssignmentType {
   AREA = 'AREA',
 }
 
+
+export enum StatusReturn{
+  RETURNED = 'RETURNED',
+  IN_USE = 'IN_USE',
+  PENDING = 'PENDING'
+}
+
+
 export class CreateAssetAssignmentDto {
   @IsNotEmpty()
   @IsString()
@@ -30,6 +38,10 @@ export class CreateAssetAssignmentDto {
   @IsNotEmpty()
   @IsDateString()
   assignedAt: string;
+
+  @IsOptional()
+  @IsEnum(StatusReturn)
+  statusReturned?: StatusReturn;
 
   @IsOptional()
   @IsDateString()
