@@ -35,14 +35,13 @@ enum AssignmentType {
 
 model AssetType {
   id          String   @id @default(uuid())
-  categoryId  String
+  categoryId  Json?
   name        String
   description String?
   status Status @default(ACTIVE)
 
   assets      Asset[]
   assetFieldDefinitions      AssetFieldDefinition[]
-  jibbyCategory JibbyCategory @relation(fields: [categoryId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,45 +155,18 @@ model AssetDocumentChunk {
   @@index([assetDocumentId])
 }
 
-model JibbyCategory {
-  id    String @id @default(uuid())
-  name  String
-
-  assetTypes      AssetType[]
-}
-model RhStaff {
-  id     String  @id @default(uuid())
-  name   String
-
-  idArea String?
-  area   RhArea? @relation(fields: [idArea], references: [id])
-
-  assetAssignments AssetAssignment[]
-}
-
-model RhArea {
-  id   String @id @default(uuid())
-  name String
-
-  staffs RhStaff[]
-
-  assetAssignments AssetAssignment[]
-}
-
 model AssetAssignment {
   id String @id @default(uuid())
   assetId String
   assignmentType AssignmentType
   projectId String?
-  staffId String?
-  areaId String?
+  staffId Json?
+  areaId Json?
   assignedAt DateTime
   returnedAt DateTime?
   statusReturned StatusReturn?
 
   asset Asset @relation(fields: [assetId], references: [id])
-  rhStaff RhStaff? @relation(fields: [staffId], references: [id])
-  rhArea   RhArea?  @relation(fields: [areaId], references: [id])
   project   Project?   @relation(fields: [projectId], references: [id])
 
   createdAt DateTime @default(now())

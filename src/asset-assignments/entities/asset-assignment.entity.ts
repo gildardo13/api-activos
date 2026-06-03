@@ -1,3 +1,5 @@
+import { StatusReturn } from "@prisma/client";
+
 export class AssetAssignment {
     id: string;
     assetId: string;
@@ -7,7 +9,7 @@ export class AssetAssignment {
     areaId?: string;
     assignedAt: Date;
     returnedAt: Date;
-    statusReturned: string;
+    statusReturned?: StatusReturn;
     createdAt: Date;
     updatedAt: Date;
 }

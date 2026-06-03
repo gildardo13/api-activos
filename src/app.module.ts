@@ -19,7 +19,6 @@ import { AssetGeofencesModule } from './asset-geofences/asset-geofences.module';
 import { AssetAssignmentsModule } from './asset-assignments/asset-assignments.module';
 import { AssetDocumentChunksModule } from './asset-document-chunks/asset-document-chunks.module';
 import { ProjectsModule } from './projects/projects.module';
-import { CategoryJibbyModule } from './category-jibby/category-jibby.module';
 import { InfoExternalModule } from './info-external/info-external.module';
 
 @Module({
@@ -42,7 +41,6 @@ import { InfoExternalModule } from './info-external/info-external.module';
     AssetAssignmentsModule,
     AssetDocumentChunksModule,
     ProjectsModule,
-    CategoryJibbyModule,
     InfoExternalModule
   ],
   controllers: [],

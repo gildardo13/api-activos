@@ -10,11 +10,16 @@ export enum Status {
   DELETED = 'DELETED',
 }
 
+export class CategoryJibby {
+  id: string;
+  name: string;
+}
+
 export class AssetType {
   id: string;
   @IsOptional()
   @IsString()
-  categoryId?: string;
+  categoryId?: CategoryJibby;
 
   @IsOptional()
   @IsString()

@@ -1,22 +1,23 @@
-import { Controller, Get, Param} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { InfoExternalService } from './info-external.service';
 
 @Controller('info-external')
 export class InfoExternalController {
   constructor(private readonly infoExternalService: InfoExternalService) { }
 
-  @Get('/getCategoriesJibby')
-  getCategoriesJibby() {
-    return this.infoExternalService.getCategoriesJibby();
+  @Get('/getCatalogJibby')
+  getCatalogJibby() {
+    return this.infoExternalService.getCatalogJibby();
+  }
+
+  @Get('/getAreas')
+  getAreas() {
+    return this.infoExternalService.getAreasRh();
   }
 
   @Get('/getStaff')
   getStaff() {
     return this.infoExternalService.getStaffRh();
-  }
-  @Get('/getAreas')
-  getAreas() {
-    return this.infoExternalService.getAreasRh();
   }
 
   @Get('/getStaffByIdArea/:id')
@@ -24,4 +25,25 @@ export class InfoExternalController {
     return this.infoExternalService.getStaffByIdArea(id);
   }
 
+
+  @Get('/getSubAreas')
+  getSubAreas() {
+    return this.infoExternalService.getSubAreasRh();
+  }
+
+  @Get('/getSubAreasByIdArea/:id')
+  getSubAreasByIdArea(@Param('id') id: string) {
+    return this.infoExternalService.getSubAreasRhById(id);
+  }
+
+  @Get('/getSubMiniAreas/:idArea/:idSubArea')
+  getSubMiniAreas(@Param('idArea') idArea: string, @Param('idSubArea') idSubArea: string) {
+    return this.infoExternalService.getSubIdMiniSubAreasRh(idArea, idSubArea);
+  }
+
+  @Get('/getPositionsByIdArea/:id')
+  getPositionsByIdArea(@Param('id') id: string) {
+    return this.infoExternalService.getPositionsBySubMiniArea(id);
+  }
 }
+

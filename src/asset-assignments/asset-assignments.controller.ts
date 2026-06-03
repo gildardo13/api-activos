@@ -42,6 +42,14 @@ export class AssetAssignmentsController {
     return this.assetAssignmentsService.findAll(query);
   }
 
+  @Get('/find-all-status')
+  @HttpCode(HttpStatus.OK)
+  findAllStatus(
+    @Query() query: any
+  ) {
+    return this.assetAssignmentsService.findAllStatus(query);
+  }
+
   @Get('/findOne/:id')
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
@@ -74,5 +82,11 @@ export class AssetAssignmentsController {
   @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string) {
     return this.assetAssignmentsService.remove(id);
+  }
+
+  @Patch('/change-return-status/:id')
+  @HttpCode(HttpStatus.OK)
+  changeReturnStatus(@Param('id') id: string) {
+    return this.assetAssignmentsService.changeReturnStatus(id);
   }
 }
