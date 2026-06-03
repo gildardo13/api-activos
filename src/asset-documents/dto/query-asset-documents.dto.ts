@@ -5,31 +5,27 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import {Type } from 'class-transformer';
 
 export enum SortOrder {
   ASC = 'asc',
   DESC = 'desc',
 }
 
-export class QueryCategoryJibbyDto {
+export class QueryAssetDocumentsDto {
+  @IsOptional()
+  @Type(() => Number)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number = 10;
 
   @IsOptional()
   @IsString()
   searchTerm?: string;
 
   @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  page?: number = 1;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  limit?: number = 10;
-
-  @IsOptional()
-  @IsEnum(SortOrder)
-  @Transform(({ value }) => value || SortOrder.DESC)
+  @IsString()
   sortByDate?: SortOrder = SortOrder.DESC;
 }

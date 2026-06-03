@@ -38,8 +38,8 @@ export class AssetAssignmentsService {
         assetId: dto.assetId,
         assignmentType: dto.assignmentType,
         projectId: dto.projectId,
-        staffId: dto.staffId,
-        areaId: dto.areaId,
+        staffId: dto.staffId ? (dto.staffId as any) : null,
+        areaId: dto.areaId ? (dto.areaId as any) : null,
         assignedAt: dto.assignedAt ? new Date(dto.assignedAt) : new Date()
       },
     });
@@ -62,10 +62,11 @@ export class AssetAssignmentsService {
       where.status = status;
     }
 
-    // ── Búsqueda Avanzada por Relaciones ────────────────────
+    // ── Búsqueda por Activo y Proyecto ──────────────────────
+    // Nota: staff/área ya no tienen tabla local; el filtro por nombre
+    // de colaborador o área debe realizarse en el frontend.
     if (searchTerm) {
       where.OR = [
-        // Buscar en los datos del Activo vinculado
         {
           asset: {
             name: { contains: searchTerm, mode: 'insensitive' },
@@ -76,21 +77,8 @@ export class AssetAssignmentsService {
             code: { contains: searchTerm, mode: 'insensitive' },
           },
         },
-        // Buscar en el nombre del Proyecto asignado
         {
           project: {
-            name: { contains: searchTerm, mode: 'insensitive' },
-          },
-        },
-        // Buscar en el nombre del Colaborador (Staff) asignado
-        {
-          rhStaff: {
-            name: { contains: searchTerm, mode: 'insensitive' },
-          },
-        },
-        // Buscar en el nombre del Área asignada
-        {
-          rhArea: {
             name: { contains: searchTerm, mode: 'insensitive' },
           },
         },
@@ -108,10 +96,8 @@ export class AssetAssignmentsService {
         skip,
         take: limit,
         include: {
-          asset: true,     // Trae info básica del activo
-          project: true,   // Trae info del proyecto si aplica
-          rhStaff: true,   // Trae info del colaborador si aplica
-          rhArea: true,    // Trae info de la empresa/área si aplica
+          asset: true,
+          project: true,
         },
         orderBy: {
           createdAt: sortByDate, // Ordena por fecha de creación del registro
@@ -135,8 +121,6 @@ export class AssetAssignmentsService {
       include: {
         asset: true,
         project: true,
-        rhStaff: true,
-        rhArea: true,
       },
     });
 
@@ -159,19 +143,11 @@ export class AssetAssignmentsService {
       where.assignmentType = assignmentType;
     }
 
-    // ── Búsqueda por nombre del responsable ────────────────────
+    // ── Búsqueda por nombre del proyecto ─────────────────────
+    // Nota: staff/área ya no tienen tabla local; búsqueda por nombre
+    // de colaborador o área debe realizarse en el frontend.
     if (searchTerm) {
       where.OR = [
-        {
-          rhStaff: {
-            name: { contains: searchTerm, mode: 'insensitive' },
-          },
-        },
-        {
-          rhArea: {
-            name: { contains: searchTerm, mode: 'insensitive' },
-          },
-        },
         {
           project: {
             name: { contains: searchTerm, mode: 'insensitive' },
@@ -185,8 +161,6 @@ export class AssetAssignmentsService {
       include: {
         asset: true,
         project: true,
-        rhStaff: true,
-        rhArea: true,
       },
       orderBy: {
 
@@ -200,8 +174,7 @@ export class AssetAssignmentsService {
 
   }
 
-  async update(id: string,
-    dto: UpdateAssetAssignmentDto) {
+  async update(id: string, dto: UpdateAssetAssignmentDto) {
     const existing = await this.prisma.assetAssignment.findUnique({
       where: { id },
     });
@@ -210,14 +183,19 @@ export class AssetAssignmentsService {
       throw new NotFoundException('Assignment not found');
     }
 
+    // Como desestructurar '...dto' directo puede romper los formatos de fecha o el tipado estricto de Prisma Json,
+    // es más seguro mapear los campos explícitamente:
+    const dataToUpdate: any = {
+      ...dto,
+    };
+    if (dto.staffId) dataToUpdate.staffId = dto.staffId as any;
+    if (dto.areaId) dataToUpdate.areaId = dto.areaId as any;
+
     return this.prisma.assetAssignment.update({
       where: { id },
-      data: {
-        ...dto,
-      },
+      data: dataToUpdate,
     });
   }
-
   async remove(id: string) {
     const existing = await this.prisma.assetAssignment.findUnique({
       where: { id },
@@ -256,6 +234,107 @@ export class AssetAssignmentsService {
       where: { id },
       data: {
         returnedAt: new Date(),
+        statusReturned: 'RETURNED',
+      },
+    });
+  }
+
+  async findAllStatus(query: any) {
+    const page = query.page ? Number(query.page) : 1;
+    const limit = query.limit ? Number(query.limit) : 10;
+    const { staffId, areaId, searchTerm, sortByDate = 'desc' } = query;
+
+    const skip = (page - 1) * limit;
+    const where: any = {};
+
+    if (staffId) {
+      where.staffId = {
+        path: ['id'],
+        equals: staffId,
+      };
+    } else if (areaId) {
+      where.areaId = {
+        path: ['id'],
+        equals: areaId,
+      };
+    }
+
+    if (searchTerm) {
+      where.OR = [
+        {
+          asset: {
+            name: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+        {
+          asset: {
+            code: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+        {
+          project: {
+            name: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    const [total, items] = await Promise.all([
+      this.prisma.assetAssignment.count({
+        where,
+      }),
+
+      this.prisma.assetAssignment.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          asset: true,
+          project: true,
+        },
+        orderBy: {
+          createdAt: sortByDate,
+        },
+      }),
+    ]);
+
+    return {
+      data: items,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async changeReturnStatus(id: string) {
+    const assignment = await this.prisma.assetAssignment.findUnique({
+      where: { id },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Assignment not found');
+    }
+
+    let statusReturned: 'PENDING' | 'RETURNED' | 'IN_USE' = 'PENDING';
+    let returnedAt: Date | null = null;
+
+    if (!assignment.statusReturned || assignment.statusReturned === 'IN_USE') {
+      statusReturned = 'PENDING';
+    } else if (assignment.statusReturned === 'PENDING') {
+      statusReturned = 'RETURNED';
+      returnedAt = new Date();
+    } else {
+      throw new BadRequestException('La asignación ya ha sido devuelta.');
+    }
+
+    return this.prisma.assetAssignment.update({
+      where: { id },
+      data: {
+        statusReturned,
+        returnedAt,
       },
     });
   }

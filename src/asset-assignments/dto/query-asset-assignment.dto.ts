@@ -33,4 +33,5 @@ export class QueryAssetsAssignmentDto {
   @IsOptional()
   @IsString()
   sortByDate?: SortOrder = SortOrder.DESC;
+  
 }

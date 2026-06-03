@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
-import { Status } from '@prisma/client';
+import { Prisma, Status } from '@prisma/client';
 import { QueryAssetTypeDto } from './dto/query-asset-type.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -19,8 +19,14 @@ export class AssetTypesService {
       throw new BadRequestException('Asset type already exists');
     }
 
+    // Separamos categoryId para manejar el tipado estricto de Prisma Json
+    const { categoryId, ...restDto } = createAssetTypeDto;
+
     const newAssetType = await this.prisma.assetType.create({
-      data: createAssetTypeDto,
+      data: {
+        ...restDto,
+        categoryId: categoryId as unknown as Prisma.InputJsonValue,
+      },
     });
 
     return newAssetType;
@@ -64,7 +70,6 @@ export class AssetTypesService {
     const prismaQuery: any = {
       where,
       include: {
-        jibbyCategory: true,
         assets: true,
         assetFieldDefinitions: true,
       },
@@ -106,7 +111,6 @@ export class AssetTypesService {
         id,
       },
       include: {
-        jibbyCategory: true,
         assets: true,
         assetFieldDefinitions: true,
       },
@@ -121,29 +125,27 @@ export class AssetTypesService {
     return assetType;
   }
 
-  async update(
-    id: string,
-    updateAssetTypeDto: UpdateAssetTypeDto,
-  ) {
+  async update(id: string, updateAssetTypeDto: UpdateAssetTypeDto) {
     const existing = await this.prisma.assetType.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     if (!existing) {
-      throw new NotFoundException(
-        'Asset type not found',
-      );
+      throw new NotFoundException('Asset type not found');
     }
 
+    // Separamos categoryId para evitar el choque con la firma de índice de TypeScript
+    const { categoryId, ...restDto } = updateAssetTypeDto;
+
     const updatedAssetType = await this.prisma.assetType.update({
-      where: {
-        id,
+      where: { id },
+      data: {
+        ...restDto,
+        ...(categoryId !== undefined && {
+          categoryId: categoryId as unknown as Prisma.InputJsonValue,
+        }),
       },
-      data: updateAssetTypeDto,
       include: {
-        jibbyCategory: true,
         assets: true,
         assetFieldDefinitions: true,
       },
