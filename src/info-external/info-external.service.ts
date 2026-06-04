@@ -93,9 +93,6 @@ export class InfoExternalService {
     return headers;
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Catalogo Jibby  →  GET /catalog/{id}
-  // ───────────────────────────────────────────────────────────────────────────
   async getCatalogJibby(): Promise<RhCategoryItem[]> {
     try {
       const res = await this.rootApi().get<any>(
@@ -123,9 +120,6 @@ export class InfoExternalService {
     }
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Staff  →  POST /staff/find_all  (paginado)
-  // ───────────────────────────────────────────────────────────────────────────
   async getStaffRh(): Promise<RhStaffItem[]> {
     try {
       const allItems: any[] = [];
@@ -162,9 +156,6 @@ export class InfoExternalService {
     }
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Áreas  →  GET /area/selector
-  // ───────────────────────────────────────────────────────────────────────────
   async getAreasRh(): Promise<RhAreaItem[]> {
     try {
       const res = await this.rhApi().get<any>('area/selector', {
@@ -189,9 +180,6 @@ export class InfoExternalService {
     }
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Staff por Área  →  GET /staff/by-area/:idArea  (o POST con filtro)
-  // ───────────────────────────────────────────────────────────────────────────
   async getStaffByIdArea(idArea: string): Promise<RhStaffItem[]> {
     try {
       const all = await this.getStaffRh();
@@ -306,7 +294,6 @@ export class InfoExternalService {
     }
   }
 
-
   async getPositionsBySubMiniArea(idArea: string): Promise<any[]> {
     try {
       const res = await this.rhApi().get<any>(`position/selector_list`, {
@@ -335,6 +322,31 @@ export class InfoExternalService {
     } catch (err: any) {
       this.logger.error(`getPositionsBySubMiniArea error: ${err.message}`);
       throw new HttpException('Error al obtener los puestos', HttpStatus.BAD_GATEWAY);
+    }
+  }
+  async getCredentailsByStaffId(userId: string) {
+    try {
+      const res = await this.rhApi().get<any>(`staff/user/data/${userId}/${this._empresa}`, {
+        headers: this.buildHeaders(),
+      });
+      if (res.data && res.data.id) {
+        return res.data;
+      }
+
+      const raw = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+
+      return raw;
+    } catch (err: any) {
+      this.logger.error(`getCredentailsByStaffId error: ${err.message}`);
+      const status = err.response?.status || HttpStatus.BAD_GATEWAY;
+      throw new HttpException(
+        err.response?.data?.message || 'Error al obtener credenciales',
+        status
+      );
     }
   }
 

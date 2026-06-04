@@ -249,6 +249,29 @@ export class AssetAssignmentsService {
 
     if (projectId) {
       where.projectId = projectId;
+    } else if (staffId && areaId) {
+      // Traer asignaciones del colaborador O de su área (solo cuando staffId es null)
+      where.OR = [
+        {
+          staffId: {
+            path: ['id'],
+            equals: staffId,
+          },
+        },
+        {
+          AND: [
+            {
+              areaId: {
+                path: ['id'],
+                equals: areaId,
+              },
+            },
+            {
+              staffId: { equals: null },
+            },
+          ],
+        },
+      ];
     } else if (staffId) {
       where.staffId = {
         path: ['id'],
@@ -262,7 +285,7 @@ export class AssetAssignmentsService {
     }
 
     if (searchTerm) {
-      where.OR = [
+      const searchOR = [
         {
           asset: {
             name: { contains: searchTerm, mode: 'insensitive' },
@@ -279,6 +302,18 @@ export class AssetAssignmentsService {
           },
         },
       ];
+
+      // Si ya hay un OR (staff+area), combinar ambos con AND
+      if (where.OR) {
+        const existingOR = where.OR;
+        delete where.OR;
+        where.AND = [
+          { OR: existingOR },
+          { OR: searchOR },
+        ];
+      } else {
+        where.OR = searchOR;
+      }
     }
 
     const [total, items] = await Promise.all([
