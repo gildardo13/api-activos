@@ -40,7 +40,7 @@ export class AssetGeofencesService {
   async create(
     dto: CreateAssetGeofenceDto,
   ) {
-    this.validateCoordinates(dto.coordinates);
+    this.validateCoordinates(JSON.stringify(dto.coordinates));
 
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
@@ -53,7 +53,7 @@ export class AssetGeofencesService {
       data: {
         assetId: dto.assetId,
         name: dto.name,
-        coordinates: dto.coordinates,
+        coordinates: JSON.stringify(dto.coordinates),
         status: dto.status ?? 'ACTIVE',
       },
     });
@@ -81,14 +81,14 @@ export class AssetGeofencesService {
     dto: UpdateAssetGeofenceDto
   ) {
     if (dto.coordinates) {
-      this.validateCoordinates(dto.coordinates);
+      this.validateCoordinates(JSON.stringify(dto.coordinates));
     }
 
     return this.prisma.assetGeofence.update({
       where: { id },
       data: {
         name: dto.name,
-        coordinates: dto.coordinates,
+        coordinates: JSON.stringify(dto.coordinates),
         status: dto.status,
       },
     });
