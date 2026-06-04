@@ -1,4 +1,14 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+
+
+export class CoordinatesDto {
+  @IsString()
+  lat: string;
+
+  @IsString()
+  lng: string;
+}
 
 export class CreateAssetGeofenceDto {
   @IsOptional()
@@ -8,8 +18,10 @@ export class CreateAssetGeofenceDto {
   @IsString()
   name: string;
 
-  @IsString()
-  coordinates: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CoordinatesDto)
+  coordinates: CoordinatesDto[];
 
   @IsEnum(['ACTIVE', 'INACTIVE', 'DELETED'])
   @IsOptional()
