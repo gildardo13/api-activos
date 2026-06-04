@@ -20,6 +20,11 @@ export class ProjectsController {
     return this.projectsService.findAll(query);
   }
 
+  @Get("/find-all-no-query")
+  findAllNoQuery() {
+    return this.projectsService.findAllNoQuery();
+  }
+
   @Get('/find-one/:id')
   findOne(@Param('id') id: string) {
     return this.projectsService.findOne(id);

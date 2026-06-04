@@ -24,6 +24,12 @@ export class AssetTypesController {
     return this.assetTypesService.findAll(query);
   }
 
+  @Get('/find-all-no-query')
+  @HttpCode(HttpStatus.OK)
+  findAllNoQuery() {
+    return this.assetTypesService.findAllNoQuery();
+  } 
+
   @Get('/find-one/:id')
   @HttpCode(HttpStatus.OK)
   findOne(

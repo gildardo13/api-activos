@@ -245,6 +245,22 @@ export class AssetsService {
     };
   }
 
+  async findAllNoQuery() {
+    const data = await this.prisma.asset.findMany({
+      include: {
+        assetType: true,
+        assetTelemetryLogs: true,
+        assetDocuments: true,
+        assetGeofences: true,
+        assetAssignments: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  } 
+
   async findOne(id: string) {
     const asset = await this.prisma.asset.findUnique({
       where: { id },

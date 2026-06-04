@@ -242,12 +242,14 @@ export class AssetAssignmentsService {
   async findAllStatus(query: any) {
     const page = query.page ? Number(query.page) : 1;
     const limit = query.limit ? Number(query.limit) : 10;
-    const { staffId, areaId, searchTerm, sortByDate = 'desc' } = query;
+    const { staffId, areaId, projectId, searchTerm, sortByDate = 'desc' } = query;
 
     const skip = (page - 1) * limit;
     const where: any = {};
 
-    if (staffId) {
+    if (projectId) {
+      where.projectId = projectId;
+    } else if (staffId) {
       where.staffId = {
         path: ['id'],
         equals: staffId,

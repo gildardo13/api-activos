@@ -81,6 +81,12 @@ export class ProjectsService {
     };
   }
 
+  async findAllNoQuery() {
+    const projects = await this.prisma.project.findMany({
+    });
+    return { data: projects };
+  }
+
   async findOne(id: string) {
     const project = await this.prisma.project.findUnique({
       where: {
