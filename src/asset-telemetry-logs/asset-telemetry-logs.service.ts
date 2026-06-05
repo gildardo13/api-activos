@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto';
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AssetType } from 'src/asset-types/entities/asset-type.entity';
 
 @Injectable()
 export class AssetTelemetryLogsService {
@@ -9,6 +10,7 @@ export class AssetTelemetryLogsService {
 
   // 1. REGISTRAR TELEMETRÍA
   async create(dto: CreateAssetTelemetryLogDto) {
+    // 1. Verificar si el asset existe
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
     });
@@ -17,15 +19,30 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
-    return this.prisma.assetTelemetryLog.create({
-      data: {
-        assetId: dto.assetId,
-        latitud: dto.latitud,
-        longitud: dto.longitud,
-        speed: dto.speed,
-        recordedAt: dto.recordedAt ?? new Date(),
-      },
+    // 2. Ejecutar la creación y la actualización en una transacción simultánea
+    const [telemetry, updateAsset] = await this.prisma.$transaction(async (tx) => {
+      // IMPORTANTE: Nota el 'await' y el uso de 'tx' en lugar de 'this.prisma'
+      const newTelemetry = await tx.assetTelemetryLog.create({
+        data: {
+          assetId: dto.assetId,
+          latitud: dto.latitud,
+          longitud: dto.longitud,
+          speed: dto.speed,
+          recordedAt: dto.recordedAt ?? new Date(),
+        },
+      });
+
+      // Ahora 'newTelemetry.id' sí existe de verdad porque la BD ya respondió
+      const updated = await tx.asset.update({
+        where: { id: dto.assetId },
+        data: {
+          lastLocation: newTelemetry.id, // <-- Asignamos el ID real
+        },
+      });
+
+      return [newTelemetry, updated];
     });
+    return telemetry;
   }
 
   // 2. OBTENER HISTORIAL (Por Asset)
@@ -59,30 +76,46 @@ export class AssetTelemetryLogsService {
   }
 
   // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
+  // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
   async findAllLatest() {
-    // Usamos groupBy para traer la fecha más reciente de cada asset en UNA sola consulta
-    const grouped = await this.prisma.assetTelemetryLog.groupBy({
-      by: ['assetId'],
-      _max: {
-        recordedAt: true,
+    // 1. Obtenemos los assets filtrando desde la BD que tengan un 'lastLocation' válido
+    const listAsset = await this.prisma.asset.findMany({
+      where: {
+        AND: [
+          { lastLocation: { not: null } },
+          { lastLocation: { not: "" } }
+        ]
+      },
+      include: {
+        assetType: true
+      }
+    });
+
+    // 2. Extraemos los IDs asegurándonos doblemente en JS que no pasen vacíos o nulos
+    const telemetryIds = listAsset
+      .map((item) => item.lastLocation)
+      .filter((id): id is string => typeof id === "string" && id.trim() !== "");
+
+    // Si ningún asset tiene telemetría válida, evitamos una consulta innecesaria a la BD
+    if (telemetryIds.length === 0) {
+      return [];
+    }
+
+    // 3. Traemos todas las telemetrías en una sola consulta
+    const telemetries = await this.prisma.assetTelemetryLog.findMany({
+      where: {
+        id: { in: telemetryIds },
       },
     });
 
-    if (grouped.length === 0) return [];
 
-    // Construimos los filtros para traer los registros exactos en UNA segunda consulta
-    const filters = grouped.map((item) => ({
-      assetId: item.assetId,
-      recordedAt: item._max.recordedAt!,
-    }));
-
-    return this.prisma.assetTelemetryLog.findMany({
-      where: {
-        OR: filters,
-      },
-      orderBy: {
-        recordedAt: 'desc',
-      },
+    return listAsset.map((asset) => {
+      const telemetry = telemetries.find((t) => t.id === asset.lastLocation);
+      const data = {
+        ...telemetry,
+        assetId: asset 
+      }
+      return data
     });
   }
   // OBTENER TODO (Logs históricos + Últimas ubicaciones agrupadas)

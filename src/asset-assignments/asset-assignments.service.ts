@@ -204,6 +204,9 @@ export class AssetAssignmentsService {
     if (!existing) {
       throw new NotFoundException('Assignment not found');
     }
+    if(existing.statusReturned !== 'RETURNED' ) {
+      throw new BadRequestException('No se puede eliminar una asignacion si el activo no ha sido devuelto');
+    }
 
     await this.prisma.assetAssignment.delete({
       where: { id },
@@ -361,7 +364,22 @@ export class AssetAssignmentsService {
     if (!assignment.statusReturned || assignment.statusReturned === 'IN_USE') {
       statusReturned = 'PENDING';
     } else if (assignment.statusReturned === 'PENDING') {
+
       statusReturned = 'RETURNED';
+      const asset = await this.prisma.asset.findUnique({
+        where: { id: assignment.assetId },
+      });
+      if (asset) {
+        await this.prisma.asset.update({
+          where: { id: assignment.assetId },
+          data: {
+            lastLocation: null,
+          },
+        });
+        /*await this.prisma.assetTelemetryLog.deleteMany({
+          where: { assetId: assignment.assetId },
+        });*/
+      }
       returnedAt = new Date();
     } else {
       throw new BadRequestException('La asignación ya ha sido devuelta.');
