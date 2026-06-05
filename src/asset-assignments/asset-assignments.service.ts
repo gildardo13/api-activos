@@ -376,9 +376,9 @@ export class AssetAssignmentsService {
             lastLocation: null,
           },
         });
-        /*await this.prisma.assetTelemetryLog.deleteMany({
+        await this.prisma.assetTelemetryLog.deleteMany({
           where: { assetId: assignment.assetId },
-        });*/
+        });
       }
       returnedAt = new Date();
     } else {

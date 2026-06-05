@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { ClasificationType } from '../dto/create-asset-type.dto';
 
 export enum Status {
   ACTIVE = 'ACTIVE',
@@ -17,7 +18,10 @@ export class CategoryJibby {
 
 export class AssetType {
   id: string;
-  @IsOptional()
+
+  @IsEnum(ClasificationType)
+  clasificationType?: ClasificationType;
+
   @IsString()
   categoryId?: CategoryJibby;
 

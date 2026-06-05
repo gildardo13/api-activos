@@ -18,6 +18,9 @@ export class AssetTypesService {
     if (existing) {
       throw new BadRequestException('Asset type already exists');
     }
+    if (!createAssetTypeDto.clasificationType) {
+      throw new BadRequestException('Tiene que seleccionar una clasificación');
+    }
 
     // Separamos categoryId para manejar el tipado estricto de Prisma Json
     const { categoryId, ...restDto } = createAssetTypeDto;
@@ -194,6 +197,9 @@ export class AssetTypesService {
     if (!existing) {
       throw new NotFoundException('Asset type not found');
     }
+    await this.prisma.assetFieldDefinition.deleteMany({
+      where: { assetTypeId: id },
+    });
 
     return this.prisma.assetType.delete({
       where: { id },

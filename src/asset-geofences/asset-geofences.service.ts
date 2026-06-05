@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { CreateAssetGeofenceDto } from './dto/create-asset-geofence.dto';
+import { CreateAssetGeofenceDto, CoordinatesDto } from './dto/create-asset-geofence.dto';
 import { UpdateAssetGeofenceDto } from './dto/update-asset-geofence.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -7,19 +7,16 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class AssetGeofencesService {
   constructor(private prisma: PrismaService) { }
 
-  private validateCoordinates(coordinates: string) {
-    const points = coordinates.split(';');
-    if (points.length < 3) {
+  private validateCoordinates(coordinates: CoordinatesDto[]) {
+    if (!coordinates || coordinates.length < 3) {
       throw new BadRequestException(
         'A geofence must have at least 3 coordinates',
       );
     }
 
-    for (const point of points) {
-      const [lat, lng] = point.split(',');
-
-      const latNum = Number(lat);
-      const lngNum = Number(lng);
+    for (const point of coordinates) {
+      const latNum = Number(point.lat);
+      const lngNum = Number(point.lng);
 
       if (
         isNaN(latNum) ||
@@ -30,7 +27,7 @@ export class AssetGeofencesService {
         lngNum > 180
       ) {
         throw new BadRequestException(
-          `Invalid coordinate: ${point}`,
+          `Invalid coordinate: lat=${point.lat}, lng=${point.lng}`,
         );
       }
     }
@@ -40,20 +37,22 @@ export class AssetGeofencesService {
   async create(
     dto: CreateAssetGeofenceDto,
   ) {
-    this.validateCoordinates(JSON.stringify(dto.coordinates));
+    this.validateCoordinates(dto.coordinates);
 
-    const assetExist = await this.prisma.asset.findUnique({
-      where: { id: dto.assetId },
-    });
-
-    if (!assetExist) {
-      throw new BadRequestException('Asset not found');
+    if (dto.assetId) {
+      const assetExist = await this.prisma.asset.findUnique({
+        where: { id: dto.assetId },
+      });
+      if (!assetExist) {
+        throw new BadRequestException('Asset not found');
+      }
     }
+
     return this.prisma.assetGeofence.create({
       data: {
-        assetId: dto.assetId,
+        assetId: dto.assetId ?? null,
         name: dto.name,
-        coordinates: JSON.stringify(dto.coordinates),
+        coordinates: dto.coordinates as any,
         status: dto.status ?? 'ACTIVE',
       },
     });
@@ -62,6 +61,16 @@ export class AssetGeofencesService {
   // FIND ALL
   async findAll() {
     return this.prisma.assetGeofence.findMany({
+      include: {
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            
+          },
+        },
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -72,6 +81,15 @@ export class AssetGeofencesService {
   async findOne(id: string) {
     return this.prisma.assetGeofence.findUnique({
       where: { id },
+      include: {
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
     });
   }
 
@@ -81,14 +99,14 @@ export class AssetGeofencesService {
     dto: UpdateAssetGeofenceDto
   ) {
     if (dto.coordinates) {
-      this.validateCoordinates(JSON.stringify(dto.coordinates));
+      this.validateCoordinates(dto.coordinates);
     }
 
     return this.prisma.assetGeofence.update({
       where: { id },
       data: {
         name: dto.name,
-        coordinates: JSON.stringify(dto.coordinates),
+        coordinates: dto.coordinates ? JSON.stringify(dto.coordinates) : undefined,
         status: dto.status,
       },
     });
