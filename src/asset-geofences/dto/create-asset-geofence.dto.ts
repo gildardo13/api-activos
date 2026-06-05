@@ -19,8 +19,6 @@ export class CreateAssetGeofenceDto {
   name: string;
 
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CoordinatesDto)
   coordinates: CoordinatesDto[];
 
   @IsEnum(['ACTIVE', 'INACTIVE', 'DELETED'])

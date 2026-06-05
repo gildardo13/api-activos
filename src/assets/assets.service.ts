@@ -411,6 +411,12 @@ export class AssetsService {
       throw new NotFoundException('Asset not found');
     }
 
+    const geofences = await this.prisma.assetGeofence.deleteMany({
+      where: {
+        assetId: id,
+      },
+    });
+
     const documentIds = existing.assetDocuments.map(doc => doc.id);
 
     // borrar chunks

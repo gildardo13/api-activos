@@ -22,7 +22,7 @@ export class AssetGeofencesController {
     private readonly assetGeofencesService: AssetGeofencesService,
   ) {}
 
-  @Post('')
+  @Post('/createGeofence')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createAssetGeofenceDto: CreateAssetGeofenceDto,
@@ -32,7 +32,7 @@ export class AssetGeofencesController {
     );
   }
 
-  @Get('')
+  @Get('/getAllAssetGeofences')
   @HttpCode(HttpStatus.OK)
   findAll() {
     return this.assetGeofencesService.findAll();

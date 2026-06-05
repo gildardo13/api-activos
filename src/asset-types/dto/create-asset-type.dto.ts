@@ -6,7 +6,7 @@ export enum Status {
   DELETED = 'DELETED',
 }
 
-export class CategoryJibby{
+export class CategoryJibby {
   @IsString()
   @IsNotEmpty()
   id: string;
@@ -16,12 +16,20 @@ export class CategoryJibby{
   name: string;
 }
 
+export enum ClasificationType {
+  MOVABLE = 'MOVABLE',
+  INMOVABLE = 'INMOVABLE',
+}
+
 export class CreateAssetTypeDto {
   @IsOptional()
   @IsString()
   id?: string;
 
   @IsOptional()
+  @IsEnum(ClasificationType)
+  clasificationType?: ClasificationType;
+
   @IsObject()
   categoryId?: CategoryJibby;
 

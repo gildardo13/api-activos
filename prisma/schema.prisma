@@ -33,13 +33,18 @@ enum AssignmentType {
   AREA
 }
 
+enum ClasificationType {
+  MOVABLE
+  INMOVABLE
+}
+
 model AssetType {
   id          String   @id @default(uuid())
   categoryId  Json?
   name        String
   description String?
   status Status @default(ACTIVE)
-
+  clasificationType ClasificationType? 
   assets      Asset[]
   assetFieldDefinitions      AssetFieldDefinition[]
 
