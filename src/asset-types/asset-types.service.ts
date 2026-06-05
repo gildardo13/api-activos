@@ -197,10 +197,6 @@ export class AssetTypesService {
     if (!existing) {
       throw new NotFoundException('Asset type not found');
     }
-    const assetFieldDefinitions = await this.prisma.assetFieldDefinition.findMany({
-      where: { assetTypeId: id },
-    });
-
     await this.prisma.assetFieldDefinition.deleteMany({
       where: { assetTypeId: id },
     });
