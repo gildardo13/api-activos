@@ -49,6 +49,12 @@ export class AssetsController {
     return this.assetsService.findAll(query);
   }
 
+  @Get('/find-all-no-query')
+  @HttpCode(HttpStatus.OK)
+  findAllNoQuery() {
+    return this.assetsService.findAllNoQuery();
+  }
+  
   @Get('/:id')
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {

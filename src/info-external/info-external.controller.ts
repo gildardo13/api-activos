@@ -45,5 +45,10 @@ export class InfoExternalController {
   getPositionsByIdArea(@Param('id') id: string) {
     return this.infoExternalService.getPositionsBySubMiniArea(id);
   }
+
+  @Get('/getCredentailsByUserId/:id')
+  getCredentailsByStaffId(@Param('id') id: string) {
+    return this.infoExternalService.getCredentailsByStaffId(id);
+  }
 }
 

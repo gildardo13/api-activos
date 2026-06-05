@@ -130,7 +130,7 @@ model AssetGeofence {
   id String @id @default(uuid())
   assetId String
   name String
-  coordinates String
+  coordinates Json?    @default("[]")
   status Status @default(ACTIVE)
   asset Asset @relation(fields: [assetId], references: [id])
 

@@ -204,6 +204,9 @@ export class AssetAssignmentsService {
     if (!existing) {
       throw new NotFoundException('Assignment not found');
     }
+    if(existing.statusReturned !== 'RETURNED' ) {
+      throw new BadRequestException('No se puede eliminar una asignacion si el activo no ha sido devuelto');
+    }
 
     await this.prisma.assetAssignment.delete({
       where: { id },
@@ -242,12 +245,37 @@ export class AssetAssignmentsService {
   async findAllStatus(query: any) {
     const page = query.page ? Number(query.page) : 1;
     const limit = query.limit ? Number(query.limit) : 10;
-    const { staffId, areaId, searchTerm, sortByDate = 'desc' } = query;
+    const { staffId, areaId, projectId, searchTerm, sortByDate = 'desc' } = query;
 
     const skip = (page - 1) * limit;
     const where: any = {};
 
-    if (staffId) {
+    if (projectId) {
+      where.projectId = projectId;
+    } else if (staffId && areaId) {
+      // Traer asignaciones del colaborador O de su área (solo cuando staffId es null)
+      where.OR = [
+        {
+          staffId: {
+            path: ['id'],
+            equals: staffId,
+          },
+        },
+        {
+          AND: [
+            {
+              areaId: {
+                path: ['id'],
+                equals: areaId,
+              },
+            },
+            {
+              staffId: { equals: null },
+            },
+          ],
+        },
+      ];
+    } else if (staffId) {
       where.staffId = {
         path: ['id'],
         equals: staffId,
@@ -260,7 +288,7 @@ export class AssetAssignmentsService {
     }
 
     if (searchTerm) {
-      where.OR = [
+      const searchOR = [
         {
           asset: {
             name: { contains: searchTerm, mode: 'insensitive' },
@@ -277,6 +305,18 @@ export class AssetAssignmentsService {
           },
         },
       ];
+
+      // Si ya hay un OR (staff+area), combinar ambos con AND
+      if (where.OR) {
+        const existingOR = where.OR;
+        delete where.OR;
+        where.AND = [
+          { OR: existingOR },
+          { OR: searchOR },
+        ];
+      } else {
+        where.OR = searchOR;
+      }
     }
 
     const [total, items] = await Promise.all([
@@ -324,7 +364,22 @@ export class AssetAssignmentsService {
     if (!assignment.statusReturned || assignment.statusReturned === 'IN_USE') {
       statusReturned = 'PENDING';
     } else if (assignment.statusReturned === 'PENDING') {
+
       statusReturned = 'RETURNED';
+      const asset = await this.prisma.asset.findUnique({
+        where: { id: assignment.assetId },
+      });
+      if (asset) {
+        await this.prisma.asset.update({
+          where: { id: assignment.assetId },
+          data: {
+            lastLocation: null,
+          },
+        });
+        /*await this.prisma.assetTelemetryLog.deleteMany({
+          where: { assetId: assignment.assetId },
+        });*/
+      }
       returnedAt = new Date();
     } else {
       throw new BadRequestException('La asignación ya ha sido devuelta.');

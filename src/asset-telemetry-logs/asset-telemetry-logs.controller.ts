@@ -22,7 +22,7 @@ export class AssetTelemetryLogsController {
     private readonly assetTelemetryLogsService: AssetTelemetryLogsService,
   ) {}
 
-  @Post('')
+  @Post('/create-asset-telemetry')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createAssetTelemetryLogDto: CreateAssetTelemetryLogDto ) {
@@ -31,11 +31,24 @@ export class AssetTelemetryLogsController {
     );
   }
 
-  @Get('')
+  @Get('/getall-telemetry-logs')
   @HttpCode(HttpStatus.OK)
   findAll() {
     return this.assetTelemetryLogsService.findAll();
   }
+
+  @Get('/getall-latest-telemetry-logs')
+  @HttpCode(HttpStatus.OK)
+  findAllLatest() {
+    return this.assetTelemetryLogsService.findAllLatest();
+  }
+
+  @Get('/getAll-telemetry-logs-by-asset/:assetId')
+  @HttpCode(HttpStatus.OK)
+  findAllHistoryByAsset(@Param('assetId') assetId: string) {
+    return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId);
+  }
+
 
   @Get('/latest/:assetId')
   @HttpCode(HttpStatus.OK)

@@ -103,6 +103,20 @@ export class AssetTypesService {
       },
     };
   }
+
+  async findAllNoQuery() {
+    const data = await this.prisma.assetType.findMany({
+      include: {
+        assets: true,
+        assetFieldDefinitions: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  }
+
   async findOne(
     id: string,
   ) {
