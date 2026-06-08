@@ -20,12 +20,12 @@ import { PrismaClient } from '@prisma/client';
 export class AssetTelemetryLogsController {
   constructor(
     private readonly assetTelemetryLogsService: AssetTelemetryLogsService,
-  ) {}
+  ) { }
 
   @Post('/create-asset-telemetry')
   @HttpCode(HttpStatus.CREATED)
   create(
-    @Body() createAssetTelemetryLogDto: CreateAssetTelemetryLogDto ) {
+    @Body() createAssetTelemetryLogDto: CreateAssetTelemetryLogDto) {
     return this.assetTelemetryLogsService.create(
       createAssetTelemetryLogDto
     );
@@ -64,7 +64,7 @@ export class AssetTelemetryLogsController {
     return this.assetTelemetryLogsService.findOne(id);
   }
 
-  @Patch('/:id')
+  @Patch('/updateAssetTelemetry/:id')
   @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
@@ -81,5 +81,13 @@ export class AssetTelemetryLogsController {
     @Param('id') id: string,
   ) {
     return this.assetTelemetryLogsService.remove(id);
+  }
+
+  @Get('getOneUniqueByAssetId/:assetId')
+  @HttpCode(HttpStatus.OK)
+  findOneUniqueByAssetId(
+    @Param('assetId') assetId: string
+  ) {
+    return this.assetTelemetryLogsService.findOneUniqueByAssetId(assetId);
   }
 }

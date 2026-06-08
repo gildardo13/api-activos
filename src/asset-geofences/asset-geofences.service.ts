@@ -47,6 +47,14 @@ export class AssetGeofencesService {
         throw new BadRequestException('Asset not found');
       }
     }
+    const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
+      where: {
+        name: dto.name,
+      },
+    });
+    if (assetGeofenceExist) {
+      throw new BadRequestException('Asset geofence already exists');
+    }
 
     return this.prisma.assetGeofence.create({
       data: {
@@ -67,7 +75,7 @@ export class AssetGeofencesService {
             id: true,
             name: true,
             code: true,
-            
+
           },
         },
       },
@@ -101,6 +109,15 @@ export class AssetGeofencesService {
     if (dto.coordinates) {
       this.validateCoordinates(dto.coordinates);
     }
+    const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
+      where: {
+        name: dto.name,
+      },
+    });
+    if (assetGeofenceExist) {
+      throw new BadRequestException('Asset geofence already exists');
+    }
+
 
     return this.prisma.assetGeofence.update({
       where: { id },

@@ -20,7 +20,7 @@ import { PrismaClient } from '@prisma/client';
 export class AssetGeofencesController {
   constructor(
     private readonly assetGeofencesService: AssetGeofencesService,
-  ) {}
+  ) { }
 
   @Post('/createGeofence')
   @HttpCode(HttpStatus.CREATED)
@@ -46,7 +46,7 @@ export class AssetGeofencesController {
     return this.assetGeofencesService.findOne(id);
   }
 
-  @Patch('/:id')
+  @Patch('/updateGeofence/:id')
   @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
