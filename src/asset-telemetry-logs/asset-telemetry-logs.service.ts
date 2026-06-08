@@ -76,7 +76,6 @@ export class AssetTelemetryLogsService {
   }
 
   // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
-  // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
   async findAllLatest() {
     // 1. Obtenemos los assets filtrando desde la BD que tengan un 'lastLocation' válido
     const listAsset = await this.prisma.asset.findMany({
@@ -113,7 +112,7 @@ export class AssetTelemetryLogsService {
       const telemetry = telemetries.find((t) => t.id === asset.lastLocation);
       const data = {
         ...telemetry,
-        assetId: asset 
+        assetId: asset
       }
       return data
     });
@@ -193,5 +192,19 @@ export class AssetTelemetryLogsService {
     if (!logExist) throw new BadRequestException('Log not found');
 
     return this.prisma.assetTelemetryLog.delete({ where: { id } });
+  }
+
+  async findOneUniqueByAssetId(assetId: string) {
+    const telemetriaCompleta = await this.prisma.assetTelemetryLog.findMany({
+      where: {
+        assetId: assetId
+      },
+    });
+    const unique = telemetriaCompleta.length === 1;
+    if (unique === false) {
+      return false;
+    }else{
+      return telemetriaCompleta;
+    }
   }
 }

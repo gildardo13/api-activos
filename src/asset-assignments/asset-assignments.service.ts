@@ -204,7 +204,7 @@ export class AssetAssignmentsService {
     if (!existing) {
       throw new NotFoundException('Assignment not found');
     }
-    if(existing.statusReturned !== 'RETURNED' ) {
+    if (existing.statusReturned !== 'RETURNED') {
       throw new BadRequestException('No se puede eliminar una asignacion si el activo no ha sido devuelto');
     }
 
