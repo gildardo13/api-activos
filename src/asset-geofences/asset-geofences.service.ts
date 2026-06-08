@@ -109,14 +109,14 @@ export class AssetGeofencesService {
     if (dto.coordinates) {
       this.validateCoordinates(dto.coordinates);
     }
-    const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
+    /*const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
       where: {
         name: dto.name,
       },
     });
     if (assetGeofenceExist) {
       throw new BadRequestException('Asset geofence already exists');
-    }
+    }*/
 
 
     return this.prisma.assetGeofence.update({
