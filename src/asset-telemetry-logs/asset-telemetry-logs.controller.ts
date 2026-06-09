@@ -99,4 +99,9 @@ export class AssetTelemetryLogsController {
     return this.assetTelemetryLogsService.findAllQuery(query);
   }
 
+  @Get('/verify-limit')
+  @HttpCode(HttpStatus.OK)
+  verifyLimit() {
+    return this.assetTelemetryLogsService.veriGlobal();
+  }
 }

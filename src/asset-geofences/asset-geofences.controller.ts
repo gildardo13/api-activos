@@ -79,4 +79,7 @@ export class AssetGeofencesController {
   ) {
     return this.assetGeofencesService.remove(id);
   }
+
+
+  
 }
