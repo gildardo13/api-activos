@@ -38,7 +38,7 @@ export class AssetGeofencesController {
     return this.assetGeofencesService.findAll();
   }
 
-  @Get('/:id')
+  @Get('/getbyGeofence-id/:id')
   @HttpCode(HttpStatus.OK)
   findOne(
     @Param('id') id: string

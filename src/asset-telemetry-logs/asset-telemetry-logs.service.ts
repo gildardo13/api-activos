@@ -3,6 +3,7 @@ import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
+import { QueryAssetTelemetryLogDto } from './dto/query-asset-telemetry-log.dto';
 
 @Injectable()
 export class AssetTelemetryLogsService {
@@ -203,8 +204,47 @@ export class AssetTelemetryLogsService {
     const unique = telemetriaCompleta.length === 1;
     if (unique === false) {
       return false;
-    }else{
+    } else {
       return telemetriaCompleta;
     }
   }
+
+  async findAllQuery(query: QueryAssetTelemetryLogDto) {
+    const where: any = {};
+
+    if (query.searchName) {
+      where.asset = {
+        name: {
+          contains: query.searchName,
+          mode: 'insensitive',
+        },
+      };
+    }
+
+    if (query.searchJibbyId) {
+      where.asset = {
+        assetType: {
+          categoryId: {
+            path: ['id'],
+            equals: query.searchJibbyId,
+          },
+        },
+      };
+    }
+
+    return this.prisma.assetTelemetryLog.findMany({
+      where,
+      include: {
+        asset: {
+          include: {
+            assetType: true,
+          },
+        },
+      },
+      orderBy: {
+        recordedAt: 'desc',
+      },
+    });
+  }
+
 }

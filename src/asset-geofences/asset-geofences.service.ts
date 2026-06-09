@@ -123,7 +123,7 @@ export class AssetGeofencesService {
       where: { id },
       data: {
         name: dto.name,
-        coordinates: dto.coordinates ? JSON.stringify(dto.coordinates) : undefined,
+        coordinates: dto.coordinates ? dto.coordinates as any: undefined,
         status: dto.status,
       },
     });
