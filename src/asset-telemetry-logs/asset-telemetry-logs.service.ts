@@ -31,9 +31,7 @@ export class AssetTelemetryLogsService {
       },
     });
 
-    // Imprimir en consola de forma segura (usando ?. por si es null)
-    console.log('Las telemetrías anterior:', lasTelemetry?.latitud, lasTelemetry?.longitud);
-    console.log('DTO entrante:', dto.latitud, dto.longitud);
+   
 
     // 2. Validar que las coordenadas no sean idénticas a las últimas registradas
     if (lasTelemetry && lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud) {
