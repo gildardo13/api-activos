@@ -85,6 +85,31 @@ export class AssetGeofencesService {
     });
   }
 
+  async findAllGeofences() {
+    return this.prisma.assetGeofence.findMany({
+      // 1. Agregamos la condición anidada
+      where: {
+        asset: {
+          assetType: {
+            clasificationType: 'INMOVABLE',
+          },
+        },
+      },
+      // 2. Mantenemos tus includes y selecciones intactos
+      include: {
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
   // FIND ONE
   async findOne(id: string) {
     return this.prisma.assetGeofence.findUnique({
@@ -99,6 +124,15 @@ export class AssetGeofencesService {
         },
       },
     });
+  }
+
+  // GET GEOFENCE ID ASSET
+  async getGeofenceIdAsset(assetId: string) {
+    return this.prisma.assetGeofence.findMany({
+      where: { assetId },
+    });
+
+    
   }
 
   // UPDATE
@@ -123,7 +157,7 @@ export class AssetGeofencesService {
       where: { id },
       data: {
         name: dto.name,
-        coordinates: dto.coordinates ? dto.coordinates as any: undefined,
+        coordinates: dto.coordinates ? dto.coordinates as any : undefined,
         status: dto.status,
       },
     });
