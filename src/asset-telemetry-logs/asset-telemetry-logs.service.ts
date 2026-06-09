@@ -31,7 +31,6 @@ export class AssetTelemetryLogsService {
       },
     });
 
-   
 
     // 2. Validar que las coordenadas no sean idénticas a las últimas registradas
     if (lasTelemetry && lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud) {
