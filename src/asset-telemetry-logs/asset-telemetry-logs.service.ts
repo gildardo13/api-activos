@@ -3,6 +3,8 @@ import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
+import { QueryAssetTelemetryLogDto } from './dto/query-asset-telemetry-log.dto';
+import { isPointInPolygon } from './helper/helper';
 
 @Injectable()
 export class AssetTelemetryLogsService {
@@ -19,9 +21,24 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
-    // 2. Ejecutar la creación y la actualización en una transacción simultánea
+    // Obtener la última telemetría registrada para este activo
+    const lasTelemetry = await this.prisma.assetTelemetryLog.findFirst({
+      where: {
+        assetId: dto.assetId,
+      },
+      orderBy: {
+        recordedAt: 'desc', // Traemos el más reciente
+      },
+    });
+
+
+    // 2. Validar que las coordenadas no sean idénticas a las últimas registradas
+    if (lasTelemetry && lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud) {
+      throw new BadRequestException('Las coordenadas son idénticas a la última telemetría registrada.');
+    }
+
+    // 3. Ejecutar la creación y la actualización en una transacción simultánea
     const [telemetry, updateAsset] = await this.prisma.$transaction(async (tx) => {
-      // IMPORTANTE: Nota el 'await' y el uso de 'tx' en lugar de 'this.prisma'
       const newTelemetry = await tx.assetTelemetryLog.create({
         data: {
           assetId: dto.assetId,
@@ -32,16 +49,17 @@ export class AssetTelemetryLogsService {
         },
       });
 
-      // Ahora 'newTelemetry.id' sí existe de verdad porque la BD ya respondió
+      // Actualizar el puntero de la última ubicación en el Asset
       const updated = await tx.asset.update({
         where: { id: dto.assetId },
         data: {
-          lastLocation: newTelemetry.id, // <-- Asignamos el ID real
+          lastLocation: newTelemetry.id, // Asignamos el ID real recién creado
         },
       });
 
       return [newTelemetry, updated];
     });
+
     return telemetry;
   }
 
@@ -57,7 +75,7 @@ export class AssetTelemetryLogsService {
 
     return this.prisma.assetTelemetryLog.findMany({
       where: { assetId },
-      orderBy: { recordedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -65,11 +83,15 @@ export class AssetTelemetryLogsService {
   async findLatestByAsset(assetId: string) {
     const latest = await this.prisma.assetTelemetryLog.findFirst({
       where: { assetId },
-      orderBy: { recordedAt: 'desc' },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
 
     if (!latest) {
-      throw new BadRequestException('No telemetry logs found for this asset');
+      throw new BadRequestException(
+        'No telemetry logs found for this asset',
+      );
     }
 
     return latest;
@@ -203,8 +225,123 @@ export class AssetTelemetryLogsService {
     const unique = telemetriaCompleta.length === 1;
     if (unique === false) {
       return false;
-    }else{
+    } else {
       return telemetriaCompleta;
     }
   }
+
+  async findAllQuery(query: QueryAssetTelemetryLogDto) {
+    const where: any = {};
+
+    if (query.searchName) {
+      where.asset = {
+        name: {
+          contains: query.searchName,
+          mode: 'insensitive',
+        },
+      };
+    }
+
+    if (query.searchJibbyId) {
+      where.asset = {
+        assetType: {
+          categoryId: {
+            path: ['id'],
+            equals: query.searchJibbyId,
+          },
+        },
+      };
+    }
+
+    return this.prisma.assetTelemetryLog.findMany({
+      where,
+      include: {
+        asset: {
+          include: {
+            assetType: true,
+          },
+        },
+      },
+      orderBy: {
+        recordedAt: 'desc',
+      },
+    });
+  }
+
+
+  async veriGlobal() {
+    const listAsset = await this.prisma.asset.findMany({
+      where: {
+        AND: [
+          { lastLocation: { not: null } },
+          { lastLocation: { not: "" } }
+        ]
+      },
+      include: {
+        assetGeofences: {
+          where: { status: 'ACTIVE' }
+        }
+      }
+    });
+
+    const telemetryIds = listAsset
+      .map((item) => item.lastLocation)
+      .filter((id): id is string => typeof id === "string" && id.trim() !== "");
+
+    if (telemetryIds.length === 0) {
+      return [];
+    }
+
+    const telemetries = await this.prisma.assetTelemetryLog.findMany({
+      where: {
+        id: { in: telemetryIds },
+      },
+    });
+
+    const telemetryMap = new Map(telemetries.map(t => [t.id, t]));
+
+    const listExcesLimit: Array<{
+      idAsset: string;
+      idTelemtria: any;
+      excesLimit: boolean;
+      idGeocercas: any[];
+    }> = [];
+
+    for (const asset of listAsset) {
+      const telemetry = telemetryMap.get(asset.lastLocation!);
+
+      if (!telemetry || asset.assetGeofences.length === 0) continue;
+
+      const lat = parseFloat(telemetry.latitud);
+      const lng = parseFloat(telemetry.longitud);
+      const geocercasExcedidas: any[] = [];
+
+      for (const geofence of asset.assetGeofences) {
+        const coordinatesDto = (geofence.coordinates as any[]) || [];
+        const polygon = coordinatesDto.map((coord: { lat: string; lng: string }) => ({
+          lat: parseFloat(coord.lat),
+          lng: parseFloat(coord.lng)
+        }));
+
+        if (polygon.length < 3) continue;
+
+        const estaDentro = isPointInPolygon(lat, lng, polygon);
+
+        if (!estaDentro) {
+          geocercasExcedidas.push(geofence);
+        }
+      }
+      if (geocercasExcedidas.length > 0) {
+        listExcesLimit.push({
+          idAsset: asset.id,
+          idTelemtria: telemetry,
+          excesLimit: true,
+          idGeocercas: geocercasExcedidas
+        });
+      }
+    }
+
+    return listExcesLimit;
+  }
+
 }

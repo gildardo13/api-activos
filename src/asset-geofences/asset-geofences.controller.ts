@@ -34,16 +34,30 @@ export class AssetGeofencesController {
 
   @Get('/getAllAssetGeofences')
   @HttpCode(HttpStatus.OK)
+  findAllGeofences() {
+    return this.assetGeofencesService.findAllGeofences();
+  }
+
+  @Get('/getAll')
+  @HttpCode(HttpStatus.OK)
   findAll() {
     return this.assetGeofencesService.findAll();
   }
 
-  @Get('/:id')
+  @Get('/getbyGeofence-id/:id')
   @HttpCode(HttpStatus.OK)
   findOne(
     @Param('id') id: string
   ) {
     return this.assetGeofencesService.findOne(id);
+  }
+
+  @Get('/getGeofenceIdAsset/:assetId')
+  @HttpCode(HttpStatus.OK)
+  getGeofenceIdAsset(
+    @Param('assetId') assetId: string
+  ) {
+    return this.assetGeofencesService.getGeofenceIdAsset(assetId);
   }
 
   @Patch('/updateGeofence/:id')
@@ -65,4 +79,7 @@ export class AssetGeofencesController {
   ) {
     return this.assetGeofencesService.remove(id);
   }
+
+
+  
 }

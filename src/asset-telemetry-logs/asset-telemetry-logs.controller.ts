@@ -9,12 +9,14 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Query,
 } from '@nestjs/common';
 
 import { AssetTelemetryLogsService } from './asset-telemetry-logs.service';
 import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto';
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
 import { PrismaClient } from '@prisma/client';
+import { QueryAssetTelemetryLogDto } from './dto/query-asset-telemetry-log.dto';
 
 @Controller('asset-telemetry-logs')
 export class AssetTelemetryLogsController {
@@ -56,7 +58,7 @@ export class AssetTelemetryLogsController {
     return this.assetTelemetryLogsService.findLatestByAsset(assetId);
   }
 
-  @Get('/:id')
+  @Get('/getOne-telemetry-log/:id')
   @HttpCode(HttpStatus.OK)
   findOne(
     @Param('id') id: string,
@@ -89,5 +91,17 @@ export class AssetTelemetryLogsController {
     @Param('assetId') assetId: string
   ) {
     return this.assetTelemetryLogsService.findOneUniqueByAssetId(assetId);
+  }
+
+  @Get('/getAll-telemetry-logs-query')
+  @HttpCode(HttpStatus.OK)
+  findAllQuery(@Query() query: QueryAssetTelemetryLogDto) {
+    return this.assetTelemetryLogsService.findAllQuery(query);
+  }
+
+  @Get('/verify-limit')
+  @HttpCode(HttpStatus.OK)
+  verifyLimit() {
+    return this.assetTelemetryLogsService.veriGlobal();
   }
 }

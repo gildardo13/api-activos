@@ -41,7 +41,7 @@ export class AssetDocumentsController {
     return this.assetDocumentsService.validateRequiredDocuments(assetId);
   }
 
-  @Get(':id')
+  @Get('/get-asset-by-id/:id')
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
     return this.assetDocumentsService.findOne(id);
