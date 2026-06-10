@@ -29,6 +29,7 @@
     "@nestjs/mapped-types": "^2.1.1",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.20",
+    "@nestjs/platform-socket.io": "^11.1.26",
     "@nestjs/schedule": "^6.0.1",
     "@prisma/client": "5.20.0",
     "@types/lodash": "^4.17.16",
