@@ -403,7 +403,10 @@ export class AssetAssignmentsService {
         });
         await this.prisma.assetTelemetryLog.deleteMany({
           where: { assetId: assignment.assetId },
-        });
+        })
+        await this.prisma.assetGeofence.deleteMany({
+          where: { assetId: assignment.assetId },
+        })
       }
       returnedAt = new Date();
     } else {
