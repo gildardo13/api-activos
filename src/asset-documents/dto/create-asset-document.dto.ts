@@ -1,4 +1,5 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import { StatusApproval } from 'src/assets/dto/create-asset.dto';
 
 export class CreateAssetDocumentDto {
   @IsOptional()
@@ -20,4 +21,8 @@ export class CreateAssetDocumentDto {
   @IsOptional()
   @IsDateString()
   uploadedAt?: string;
+
+  @IsOptional()
+  @IsEnum(StatusApproval)
+  statusApproval?: StatusApproval;
 }

@@ -8,6 +8,12 @@ export enum StatusAsset {
   MAINTENANCE = 'MAINTENANCE',
 }
 
+export enum StatusApproval {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
 export class CreateAssetDto {
   @IsString()
   assetTypeId: string;
@@ -32,4 +38,8 @@ export class CreateAssetDto {
 
   @IsOptional()
   attributesData?: Prisma.InputJsonValue;
+
+  @IsOptional()
+  @IsEnum(StatusApproval)
+  statusApproval?: StatusApproval;
 }

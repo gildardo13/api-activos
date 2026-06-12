@@ -20,6 +20,7 @@ import { AssetAssignmentsModule } from './asset-assignments/asset-assignments.mo
 import { AssetDocumentChunksModule } from './asset-document-chunks/asset-document-chunks.module';
 import { ProjectsModule } from './projects/projects.module';
 import { InfoExternalModule } from './info-external/info-external.module';
+import { ApprovalFlowsModule } from './approval-flows/approval-flows.module';
 
 @Module({
   imports: [
@@ -41,7 +42,8 @@ import { InfoExternalModule } from './info-external/info-external.module';
     AssetAssignmentsModule,
     AssetDocumentChunksModule,
     ProjectsModule,
-    InfoExternalModule
+    InfoExternalModule,
+    ApprovalFlowsModule
   ],
   controllers: [],
   providers: [],

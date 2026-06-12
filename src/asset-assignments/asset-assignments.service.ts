@@ -4,10 +4,12 @@ import { UpdateAssetAssignmentDto } from './dto/update-asset-assignment.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsAssignmentDto } from './dto/query-asset-assignment.dto';
 import { QueryHistoryAssignmentDto } from './dto/query-history-assignment.dto';
+import { StatusApproval } from '@prisma/client';
+import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service';
 
 @Injectable()
 export class AssetAssignmentsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService, private readonly approvalFlowsService: ApprovalFlowsService) { }
   async create(dto: CreateAssetAssignmentDto) {
     const asset = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
@@ -40,7 +42,8 @@ export class AssetAssignmentsService {
         projectId: dto.projectId,
         staffId: dto.staffId ? (dto.staffId as any) : null,
         areaId: dto.areaId ? (dto.areaId as any) : null,
-        assignedAt: dto.assignedAt ? new Date(dto.assignedAt) : new Date()
+        assignedAt: dto.assignedAt ? new Date(dto.assignedAt) : new Date(),
+        statusApproval: StatusApproval.PENDING,
       },
     });
   }
@@ -319,7 +322,8 @@ export class AssetAssignmentsService {
       }
     }
 
-    const [total, items] = await Promise.all([
+    // Ejecutamos la consulta en la Base de Datos Local de Activos
+    const [totalDB, items] = await Promise.all([
       this.prisma.assetAssignment.count({
         where,
       }),
@@ -338,13 +342,34 @@ export class AssetAssignmentsService {
       }),
     ]);
 
+    const itemsConWorkflow = await Promise.all(
+      items.map(async (item) => {
+        try {
+          const workflowData = await this.approvalFlowsService.getWorkflowByIdClientReference(item.id);
+          return {
+            ...item,
+            statusApproval: workflowData?.status,
+          };
+        } catch (error) {
+          return {
+            ...item,
+            statusApproval: 'error',
+          };
+        }
+      })
+    );
+
+    const itemsAprobados = itemsConWorkflow.filter(item => item.statusApproval === 'approved');
+
+    const totalRealAprobados = itemsAprobados.length;
+
     return {
-      data: items,
+      data: itemsAprobados,
       meta: {
-        total,
+        total: totalRealAprobados,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(totalRealAprobados / limit),
       },
     };
   }
