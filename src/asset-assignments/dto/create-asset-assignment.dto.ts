@@ -1,4 +1,5 @@
 import { IsDateString, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
+import { StatusApproval } from 'src/assets/dto/create-asset.dto';
 
 export enum AssignmentType {
   PROJECT = 'PROJECT',
@@ -7,13 +8,13 @@ export enum AssignmentType {
 }
 
 
-export enum StatusReturn{
+export enum StatusReturn {
   RETURNED = 'RETURNED',
   IN_USE = 'IN_USE',
   PENDING = 'PENDING'
 }
 
-export class RhArea{
+export class RhArea {
   @IsString()
   @IsNotEmpty()
   id: string;
@@ -23,7 +24,7 @@ export class RhArea{
   name: string;
 }
 
-export class RhStaff{
+export class RhStaff {
   @IsString()
   @IsNotEmpty()
   id: string;
@@ -66,4 +67,9 @@ export class CreateAssetAssignmentDto {
   @IsOptional()
   @IsDateString()
   returnedAt?: string;
+
+
+  @IsOptional()
+  @IsEnum(StatusApproval)
+  statusApproval?: StatusApproval;
 }
