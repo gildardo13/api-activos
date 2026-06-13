@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ApprovalFlowsService } from './approval-flows.service';
-import { CreateSolicitudDto } from './dto/create-approval-flow.dto';
+import { ApprovedFlowDto, CreateSolicitudDto } from './dto/create-approval-flow.dto';
 import { UpdateApprovalFlowDto } from './dto/update-approval-flow.dto';
 import { resolveModuleAction } from './helper/helper';
 import { QueryAssignmentPending } from './dto/query-approval-flow.dto';
@@ -15,32 +15,29 @@ export class ApprovalFlowsController {
     return this.approvalFlowsService.getWorkflow(this.moduleId);
   }
 
- 
   @Post('/createSolicitud')
   createSolicitud(@Body() request: CreateSolicitudDto) {
     const resolvedRequest = resolveModuleAction(request);
     return this.approvalFlowsService.createSolicitud(resolvedRequest, this.moduleId);
   }
 
-   @Get('/getOneListSolicitud')
-  getWorkflowStrict(@Query() query:QueryAssignmentPending) {
+  @Get('/getOneListSolicitud')
+  getWorkflowStrict(@Query() query: QueryAssignmentPending) {
     return this.approvalFlowsService.getWorkflowStrict(query);
   }
 
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.approvalFlowsService.findOne(+id);
+  @Post('/approvedFlow')
+  approvedFlow(@Body() request: ApprovedFlowDto) {
+    return this.approvalFlowsService.approvedRequest(request, this.moduleId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateApprovalFlowDto: UpdateApprovalFlowDto) {
-    return this.approvalFlowsService.update(+id, updateApprovalFlowDto);
+  @Post('/rejectFlow')
+  rejectedFlow(@Body() request: ApprovedFlowDto) {
+    return this.approvalFlowsService.rejectedRequest(request, this.moduleId);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.approvalFlowsService.remove(+id);
-  }
+
+
 
 }
