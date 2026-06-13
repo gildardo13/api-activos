@@ -1,18 +1,26 @@
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
 import { Prisma, PrismaClient } from '@prisma/client';
-import { CreateAssetDto } from './dto/create-asset.dto';
+import { CreateAssetDto, StatusApproval } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsDto } from './dto/query-asset.dto';
+import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service';
+import { resolveModuleAction } from 'src/approval-flows/helper/helper';
+import { assert } from 'console';
 
 @Injectable()
 export class AssetsService {
-  constructor(private prisma: PrismaService) { }
+  private readonly moduleId = process.env.MODULE_ID;
+  constructor(private prisma: PrismaService,
+    @Inject(forwardRef(() => ApprovalFlowsService))
+    private readonly approvalFlowsService: ApprovalFlowsService) { }
   async create(dto: CreateAssetDto) {
     // 1. Validar que el assetType exista
     const assetType = await this.prisma.assetType.findUnique({
@@ -259,7 +267,7 @@ export class AssetsService {
       },
     });
     return { data, meta: { total: data.length } };
-  } 
+  }
 
   async findOne(id: string) {
     const asset = await this.prisma.asset.findUnique({
@@ -314,12 +322,14 @@ export class AssetsService {
           description: dto.description,
           status: dto.status,
           lastLocation: dto.lastLocation,
+          statusApproval: dto.statusApproval
         },
         include: {
           assetType: true,
         },
       });
     }
+
 
     const attributes = dto.attributesData as any[];
     const updatedAttributes = [];
@@ -377,9 +387,9 @@ export class AssetsService {
           }
         }
       }
-
       updatedAttributes.push(currentAttribute);
     }
+
 
     // 5. Guardar el activo con su JSON final limpio
     return this.prisma.asset.update({
@@ -391,12 +401,32 @@ export class AssetsService {
         status: dto.status,
         lastLocation: dto.lastLocation,
         attributesData: updatedAttributes as Prisma.InputJsonValue,
+        statusApproval: dto.statusApproval,
       },
       include: {
         assetType: true,
       },
     });
   }
+
+  async updateStatuApproval(id: string, status: string) {
+    const existing = await this.prisma.asset.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Asset not found');
+    }
+    return this.prisma.asset.update({
+      where: { id },
+      data: {
+        statusApproval: status as StatusApproval
+      },
+      include: {
+        assetType: true,
+      },
+    });
+  }
+
 
   async remove(id: string) {
 
@@ -417,6 +447,12 @@ export class AssetsService {
       },
     });
 
+    if (existing.statusApproval === "PENDING") {
+      throw new NotFoundException('Activo sigue en flujo de aprobacion');
+
+
+    }
+
     const documentIds = existing.assetDocuments.map(doc => doc.id);
 
     // borrar chunks
@@ -427,6 +463,24 @@ export class AssetsService {
         },
       },
     });
+    const listAssignment = await this.prisma.assetAssignment.findMany({
+      where: {
+        assetId: existing.id,
+      },
+    })
+    const allReturned = listAssignment.every(
+      (assignment) => assignment.statusReturned === 'RETURNED',
+    );
+
+    if (!allReturned) {
+      throw new NotFoundException('Activo sigue en uso');
+    } else {
+      this.prisma.assetAssignment.deleteMany({
+        where: {
+          assetId: existing.id,
+        },
+      })
+    }
 
     await this.prisma.assetDocument.deleteMany({
       where: {
@@ -470,6 +524,7 @@ export class AssetsService {
       data: { status },
     });
   }
+
 
   /*async createNewAsset(dto: CreateAssetDto) {
     const { assetTypeId } = dto;
