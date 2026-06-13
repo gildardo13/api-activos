@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAssetAssignmentDto } from './dto/create-asset-assignment.dto';
 import { UpdateAssetAssignmentDto } from './dto/update-asset-assignment.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -9,7 +9,15 @@ import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service'
 
 @Injectable()
 export class AssetAssignmentsService {
-  constructor(private readonly prisma: PrismaService, private readonly approvalFlowsService: ApprovalFlowsService) { }
+  private readonly moduleActionId = process.env.MODULE_ACTION_ASSIGNMENT_ID;
+
+  constructor(
+    private readonly prisma: PrismaService,
+
+    @Inject(forwardRef(() => ApprovalFlowsService))
+    private readonly approvalFlowsService: ApprovalFlowsService,
+  ) { }
+
   async create(dto: CreateAssetAssignmentDto) {
     const asset = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
@@ -17,6 +25,10 @@ export class AssetAssignmentsService {
 
     if (!asset) {
       throw new NotFoundException('Asset not found');
+    }
+
+    if(asset.statusApproval === "PENDING"){
+      throw new BadRequestException('El activo se encuentra en proceso de aprobación');
     }
 
     // 2. validar asignación activa única
@@ -27,7 +39,7 @@ export class AssetAssignmentsService {
       },
     });
 
-    if (activeAssignment) {
+    if (activeAssignment && activeAssignment.statusApproval !== 'REJECTED') {
       throw new BadRequestException(
         'El activo ya tiene una asignación activa.',
       );
@@ -207,6 +219,18 @@ export class AssetAssignmentsService {
     if (!existing) {
       throw new NotFoundException('Assignment not found');
     }
+    if (existing.statusApproval === 'REJECTED') {
+      await this.prisma.assetAssignment.delete({
+        where: { id },
+      });
+      return {
+        message: 'Assignment deleted successfully',
+      };
+
+    }
+    if (existing.statusApproval === 'PENDING') {
+      throw new BadRequestException('No se puede eliminar una asignacion si el activo no ha sido aprobado');
+    }
     if (existing.statusReturned !== 'RETURNED') {
       throw new BadRequestException('No se puede eliminar una asignacion si el activo no ha sido devuelto');
     }
@@ -345,7 +369,7 @@ export class AssetAssignmentsService {
     const itemsConWorkflow = await Promise.all(
       items.map(async (item) => {
         try {
-          const workflowData = await this.approvalFlowsService.getWorkflowByIdClientReference(item.id);
+          const workflowData = await this.approvalFlowsService.getWorkflowByIdClientReference(item.id, this.moduleActionId);
           return {
             ...item,
             statusApproval: workflowData?.status,
@@ -420,5 +444,22 @@ export class AssetAssignmentsService {
         returnedAt,
       },
     });
+  }
+
+  async approvalStatus(id: string, status: any) {
+
+    try {
+      await this.prisma.assetAssignment.update({
+        where: { id },
+        data: {
+          statusApproval: status as "PENDING" | "APPROVED" | "REJECTED",
+        },
+      });
+      return {
+        message: 'Assignment updated successfully',
+      };
+    } catch (err: any) {
+      console.log(err);
+    }
   }
 }

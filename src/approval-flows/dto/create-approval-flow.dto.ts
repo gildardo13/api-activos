@@ -4,9 +4,6 @@ export class CreateApprovalFlowDto { }
 
 
 
-export interface Metadata {
-    typeAction: string;
-}
 
 export class CreateSolicitudDto {
     @IsOptional()
@@ -18,6 +15,15 @@ export class CreateSolicitudDto {
 
     @IsObject()
     @IsOptional()
-    metadata?: Metadata;
+    metadata?: any;
+}
 
+
+export class ApprovedFlowDto {
+    @IsString()
+    requestId: string;
+
+    @IsOptional()
+    @IsString()
+    comments?: string;
 }
