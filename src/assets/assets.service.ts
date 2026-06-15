@@ -324,6 +324,7 @@ export class AssetsService {
           lastLocation: dto.lastLocation,
           statusApproval: dto.statusApproval,
           commentsApproval: dto.commentsApproval,
+
         },
         include: {
           assetType: true,
@@ -404,12 +405,14 @@ export class AssetsService {
         attributesData: updatedAttributes as Prisma.InputJsonValue,
         statusApproval: dto.statusApproval,
         commentsApproval: dto.commentsApproval,
+
       },
       include: {
         assetType: true,
       },
     });
   }
+
 
   async updateStatuApproval(id: string, status: string, rejectionComment?: string) {
     const existing = await this.prisma.asset.findUnique({
@@ -418,7 +421,6 @@ export class AssetsService {
     if (!existing) {
       throw new NotFoundException('Asset not found');
     }
-   
     return this.prisma.asset.update({
       where: { id },
       data: {

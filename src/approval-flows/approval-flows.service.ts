@@ -13,6 +13,7 @@ import { StatusApproval } from 'src/assets/dto/create-asset.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AssetDocumentsService } from 'src/asset-documents/asset-documents.service';
 
+
 @Injectable({ scope: Scope.REQUEST })
 export class ApprovalFlowsService {
   private readonly moduleId = process.env.MODULE_ID;
@@ -35,6 +36,7 @@ export class ApprovalFlowsService {
 
     @Inject(forwardRef(() => AssetDocumentsService))
     private readonly assetDocumentsService: AssetDocumentsService
+
   ) { }
 
   private get _token(): string {
@@ -225,6 +227,7 @@ export class ApprovalFlowsService {
     }
   }
 
+
   async verificarAction(id: string, moduleId, data: any) {
     // const data = await this.getWorkflowByIdClientReference(id, moduleId);
     const approvedStep = data.steps.find(
@@ -232,13 +235,13 @@ export class ApprovalFlowsService {
     );
 
     const approvedComment = approvedStep?.comments ?? null;
+
     if (data.metadata) {
       if (data.metadata.typeModel === "ASSET") {
         if (data.metadata.typeAction === "UPDATE") {
           const dto = { ...data.metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
           await this.assetsService.update(data.clientReferenceId, dto,)
           await this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment)
-
           const dtoGeocerca = data.metadata.dtoGeofence;
           if (dtoGeocerca.name) {
             if (dtoGeocerca.idExiting) {
@@ -266,6 +269,7 @@ export class ApprovalFlowsService {
           await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
           await this.assetDocumentsService.update(data.clientReferenceId, data.metadata.dtoDocument);
         }
+
       }
     }
   }

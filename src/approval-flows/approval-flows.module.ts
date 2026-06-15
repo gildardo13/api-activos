@@ -13,6 +13,7 @@ import { AssetDocumentsModule } from 'src/asset-documents/asset-documents.module
     forwardRef(() => AssetsModule),
     forwardRef(() => AssetGeofencesModule),
     forwardRef(() => AssetDocumentsModule)],
+
   controllers: [ApprovalFlowsController],
   providers: [ApprovalFlowsService],
   exports: [ApprovalFlowsService],
