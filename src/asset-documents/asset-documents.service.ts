@@ -172,7 +172,26 @@ export class AssetDocumentsService {
     return document;
   }
 
+  async updateStatusApproval(id: string, dto: UpdateAssetDocumentDto) {
+    const existing = await this.prisma.assetDocument.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Asset document with ID ${id} not found`);
+    }
+
+    const statusApproval = dto.statusApproval ?? existing.statusApproval;
+    return this.prisma.assetDocument.update({
+      where: { id },
+      data: {
+        statusApproval,
+      },
+    });
+  }
+
   async update(id: string, dto: UpdateAssetDocumentDto) {
+    console.log(dto)
     const existing = await this.prisma.assetDocument.findUnique({
       where: { id },
     });

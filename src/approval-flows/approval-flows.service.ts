@@ -257,6 +257,7 @@ export class ApprovalFlowsService {
       }
       if(data.metadata.typeModel === "ASSETDOCUMENT"){
         if(data.metadata.typeAction === "CHANGES"){
+          await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED);
           await this.assetDocumentsService.update(data.clientReferenceId, data.metadata.dtoDocument);
         }
       }

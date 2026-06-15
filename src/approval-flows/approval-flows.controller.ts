@@ -37,7 +37,11 @@ export class ApprovalFlowsController {
     return this.approvalFlowsService.rejectedRequest(request, this.moduleId);
   }
 
-
-
-
+  @Get('/getWorkflowByClientRef/:clientReferenceId/:moduleActionId')
+  getWorkflowByIdClientReference(
+    @Param('clientReferenceId') clientReferenceId: string,
+    @Param('moduleActionId') moduleActionId: string
+  ) {
+    return this.approvalFlowsService.getWorkflowByIdClientReference(clientReferenceId, moduleActionId);
+  }
 }
