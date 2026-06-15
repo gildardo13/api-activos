@@ -70,6 +70,7 @@ model Asset {
   lastLocation String?
   attributesData Json?
   statusApproval StatusApproval?
+  commentsApproval String?
 
   assetTelemetryLogs  AssetTelemetryLog[]
   assetDocuments AssetDocument[]
@@ -127,6 +128,7 @@ model AssetDocument {
   fileUrl String
   uploadedAt DateTime @default(now())
   statusApproval StatusApproval?
+  commentsApproval String?
 
   assetDocumentChunks  AssetDocumentChunk[]
   asset Asset @relation(fields: [assetId], references: [id])
@@ -179,6 +181,7 @@ model AssetAssignment {
   returnedAt DateTime?
   statusReturned StatusReturn?
   statusApproval StatusApproval?
+  commentsApproval String?
 
   asset Asset @relation(fields: [assetId], references: [id])
   project   Project?   @relation(fields: [projectId], references: [id])

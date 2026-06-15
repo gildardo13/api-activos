@@ -42,4 +42,8 @@ export class CreateAssetDto {
   @IsOptional()
   @IsEnum(StatusApproval)
   statusApproval?: StatusApproval;
+
+  @IsOptional()
+  @IsString()
+  commentsApproval?: string;
 }

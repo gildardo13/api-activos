@@ -198,7 +198,7 @@ export class ApprovalFlowsService {
           headers: this.buildHeaders(),
         },
       );
-      this.verificarActionReacjt(res.data.clientReferenceId, res.data.moduleActionId);
+      this.verificarActionReacjt(res.data.clientReferenceId, res.data.moduleActionId, res.data);
       return res.data;
     } catch (err: any) {
       this.logger.error(`rejectedRequest error: ${err.message}`);
@@ -225,13 +225,19 @@ export class ApprovalFlowsService {
     }
   }
 
-  async verificarAction(id: string, moduleId, data:any) {
+  async verificarAction(id: string, moduleId, data: any) {
     // const data = await this.getWorkflowByIdClientReference(id, moduleId);
+    const approvedStep = data.steps.find(
+      (step) => step.order === data.steps.length
+    );
+
+    const approvedComment = approvedStep?.comments ?? null;
     if (data.metadata) {
       if (data.metadata.typeModel === "ASSET") {
         if (data.metadata.typeAction === "UPDATE") {
           const dto = { ...data.metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
           await this.assetsService.update(data.clientReferenceId, dto,)
+          await this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment)
 
           const dtoGeocerca = data.metadata.dtoGeofence;
           if (dtoGeocerca.name) {
@@ -252,27 +258,32 @@ export class ApprovalFlowsService {
           }
         }
         if (data.metadata.typeAction === "ASSIGNMENT") {
-          await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED);
+          await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
         }
       }
-      if(data.metadata.typeModel === "ASSETDOCUMENT"){
-        if(data.metadata.typeAction === "CHANGES"){
-          await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED);
+      if (data.metadata.typeModel === "ASSETDOCUMENT") {
+        if (data.metadata.typeAction === "CHANGES") {
+          await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
           await this.assetDocumentsService.update(data.clientReferenceId, data.metadata.dtoDocument);
         }
       }
     }
   }
 
-  async verificarActionReacjt(id: string, moduleId) {
-    const data = await this.getWorkflowByIdClientReference(id, moduleId);
+  async verificarActionReacjt(id: string, moduleId, data: any) {
+    const steps = data.steps as any[];
+    const rejectedStep = data.steps.find(
+      (step) => step.status === 'rejected'
+    );
+
+    const rejectionComment = rejectedStep?.comments ?? null;
     if (data.metadata) {
       if (data.metadata.typeModel === "ASSET") {
         if (data.metadata.typeAction === "UPDATE") {
-          this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED);
+          this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
         }
         if (data.metadata.typeAction === "ASSIGNMENT") {
-          this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.REJECTED)
+          this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment)
           const d = await this.prisma.assetTelemetryLog.deleteMany({
             where: {
               assetId: data.metadata.dto.assetId || data.clientReferenceId,
@@ -292,9 +303,9 @@ export class ApprovalFlowsService {
           });
         }
       }
-      else if(data.metadata.typeModel === "ASSETDOCUMENT"){
-        if(data.metadata.typeAction === "CHANGES"){
-          await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED);
+      else if (data.metadata.typeModel === "ASSETDOCUMENT") {
+        if (data.metadata.typeAction === "CHANGES") {
+          await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
         }
       }
 

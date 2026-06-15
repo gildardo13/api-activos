@@ -89,4 +89,15 @@ export class AssetAssignmentsController {
   changeReturnStatus(@Param('id') id: string) {
     return this.assetAssignmentsService.changeReturnStatus(id);
   }
+
+
+  @Patch('/status-approval/:id')
+  @HttpCode(HttpStatus.OK)
+  changeStatusApproval(
+    @Param('id') id: string,
+    @Body() updateAssetAssignmentDto: any,
+  ) {
+    const [statusApproval,commentsApproval] = updateAssetAssignmentDto
+    return this.assetAssignmentsService.approvalStatus(id, statusApproval,commentsApproval);
+  }
 }

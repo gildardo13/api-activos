@@ -58,7 +58,6 @@ export class AssetsController {
   @Get('/getOneAsset/:id')
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
-    console.log(id);
     return this.assetsService.findOne(id);
   }
 

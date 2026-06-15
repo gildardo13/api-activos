@@ -289,7 +289,6 @@ export class AssetsService {
   }
 
   async update(id: string, dto: UpdateAssetDto) {
-    console.log(dto)
     // 1. Validar que el activo exista
     const existing = await this.prisma.asset.findUnique({
       where: { id },
@@ -315,7 +314,6 @@ export class AssetsService {
 
     // 3. Si no se envían atributos dinámicos, hacemos un update directo de los datos básicos
     if (!dto.attributesData || !Array.isArray(dto.attributesData)) {
-      console.log('actualizando atributos directos')
       return this.prisma.asset.update({
         where: { id },
         data: {
@@ -324,14 +322,14 @@ export class AssetsService {
           description: dto.description,
           status: dto.status,
           lastLocation: dto.lastLocation,
-          statusApproval: dto.statusApproval
+          statusApproval: dto.statusApproval,
+          commentsApproval: dto.commentsApproval,
         },
         include: {
           assetType: true,
         },
       });
     }
-    console.log('actualizando atributos')
 
 
     const attributes = dto.attributesData as any[];
@@ -405,6 +403,7 @@ export class AssetsService {
         lastLocation: dto.lastLocation,
         attributesData: updatedAttributes as Prisma.InputJsonValue,
         statusApproval: dto.statusApproval,
+        commentsApproval: dto.commentsApproval,
       },
       include: {
         assetType: true,
@@ -412,7 +411,7 @@ export class AssetsService {
     });
   }
 
-  async updateStatuApproval(id: string, status: string) {
+  async updateStatuApproval(id: string, status: string, rejectionComment?: string) {
     const existing = await this.prisma.asset.findUnique({
       where: { id },
     });
@@ -423,7 +422,8 @@ export class AssetsService {
     return this.prisma.asset.update({
       where: { id },
       data: {
-        statusApproval: status as StatusApproval
+        statusApproval: status as StatusApproval,
+        commentsApproval: rejectionComment
       },
       include: {
         assetType: true,

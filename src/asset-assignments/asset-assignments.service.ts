@@ -446,13 +446,14 @@ export class AssetAssignmentsService {
     });
   }
 
-  async approvalStatus(id: string, status: any) {
+  async approvalStatus(id: string, status: any, rejectionComment?: string) {
 
     try {
       await this.prisma.assetAssignment.update({
         where: { id },
         data: {
           statusApproval: status as "PENDING" | "APPROVED" | "REJECTED",
+          commentsApproval: rejectionComment
         },
       });
       return {

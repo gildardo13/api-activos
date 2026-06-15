@@ -182,16 +182,17 @@ export class AssetDocumentsService {
     }
 
     const statusApproval = dto.statusApproval ?? existing.statusApproval;
+    const commentsApproval = dto.commentsApproval ?? existing.commentsApproval;
     return this.prisma.assetDocument.update({
       where: { id },
       data: {
         statusApproval,
+        commentsApproval,
       },
     });
   }
 
   async update(id: string, dto: UpdateAssetDocumentDto) {
-    console.log(dto)
     const existing = await this.prisma.assetDocument.findUnique({
       where: { id },
     });
@@ -324,7 +325,7 @@ export class AssetDocumentsService {
     };
   }
 
-   async updateStatuApproval(id: string, status: string) {
+   async updateStatuApproval(id: string, status: string, rejectionComment?: string) {
       const existing = await this.prisma.assetDocument.findUnique({
         where: { id },
       });
@@ -335,7 +336,8 @@ export class AssetDocumentsService {
       return this.prisma.assetDocument.update({
         where: { id },
         data: {
-          statusApproval: status as StatusApproval
+          statusApproval: status as StatusApproval,
+          commentsApproval: rejectionComment
         }
       });
     }

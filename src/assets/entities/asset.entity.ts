@@ -1,3 +1,4 @@
+import { StatusApproval } from '@prisma/client';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 
 export enum Status {
@@ -35,4 +36,12 @@ export class Asset {
 
   @IsOptional()
   attributesData?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsEnum(StatusApproval)
+  statusApproval?: StatusApproval;
+
+  @IsOptional()
+  @IsString()
+  commentsApproval?: string;
 }
