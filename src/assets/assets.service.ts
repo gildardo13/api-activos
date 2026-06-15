@@ -289,6 +289,7 @@ export class AssetsService {
   }
 
   async update(id: string, dto: UpdateAssetDto) {
+    console.log(dto)
     // 1. Validar que el activo exista
     const existing = await this.prisma.asset.findUnique({
       where: { id },
@@ -314,6 +315,7 @@ export class AssetsService {
 
     // 3. Si no se envían atributos dinámicos, hacemos un update directo de los datos básicos
     if (!dto.attributesData || !Array.isArray(dto.attributesData)) {
+      console.log('actualizando atributos directos')
       return this.prisma.asset.update({
         where: { id },
         data: {
@@ -329,6 +331,7 @@ export class AssetsService {
         },
       });
     }
+    console.log('actualizando atributos')
 
 
     const attributes = dto.attributesData as any[];
@@ -416,6 +419,7 @@ export class AssetsService {
     if (!existing) {
       throw new NotFoundException('Asset not found');
     }
+   
     return this.prisma.asset.update({
       where: { id },
       data: {

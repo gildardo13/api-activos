@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { CreateAssetDocumentDto } from './dto/create-asset-document.dto';
 import { UpdateAssetDocumentDto } from './dto/update-asset-document.dto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, StatusApproval } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetDocumentsDto } from './dto/query-asset-documents.dto';
 
@@ -304,4 +304,20 @@ export class AssetDocumentsService {
       missingFields,
     };
   }
+
+   async updateStatuApproval(id: string, status: string) {
+      const existing = await this.prisma.assetDocument.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new NotFoundException('Asset Document not found');
+      }
+     
+      return this.prisma.assetDocument.update({
+        where: { id },
+        data: {
+          statusApproval: status as StatusApproval
+        }
+      });
+    }
 }

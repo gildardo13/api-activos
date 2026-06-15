@@ -37,7 +37,7 @@ export class CreateAssetDto {
   lastLocation?: string;
 
   @IsOptional()
-  attributesData?: Prisma.InputJsonValue;
+  attributesData?: any;
 
   @IsOptional()
   @IsEnum(StatusApproval)

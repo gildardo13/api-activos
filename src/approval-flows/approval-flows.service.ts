@@ -10,6 +10,8 @@ import { UpdateAssetDto } from 'src/assets/dto/update-asset.dto';
 import { UpdateAssetGeofenceDto } from 'src/asset-geofences/dto/update-asset-geofence.dto';
 import { AssetGeofencesService } from 'src/asset-geofences/asset-geofences.service';
 import { StatusApproval } from 'src/assets/dto/create-asset.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { AssetDocumentsService } from 'src/asset-documents/asset-documents.service';
 
 @Injectable({ scope: Scope.REQUEST })
 export class ApprovalFlowsService {
@@ -17,6 +19,8 @@ export class ApprovalFlowsService {
   private readonly logger = new Logger(ApprovalFlowsService.name);
 
   constructor(
+
+    private readonly prisma: PrismaService,
     @Inject(REQUEST)
     private readonly request: Request,
 
@@ -27,7 +31,10 @@ export class ApprovalFlowsService {
     private readonly assetsService: AssetsService,
 
     @Inject(forwardRef(() => AssetGeofencesService))
-    private readonly geocercaService: AssetGeofencesService
+    private readonly geocercaService: AssetGeofencesService,
+
+    @Inject(forwardRef(() => AssetDocumentsService))
+    private readonly assetDocumentsService: AssetDocumentsService
   ) { }
 
   private get _token(): string {
@@ -143,7 +150,6 @@ export class ApprovalFlowsService {
           headers: this.buildHeaders(),
         },
       );
-
       return res.data ?? null;
     } catch (err: any) {
       this.logger.error(
@@ -168,8 +174,9 @@ export class ApprovalFlowsService {
         },
       );
       if (res.data.status === "approved") {
-        this.verificarAction(res.data.clientReferenceId, res.data.moduleActionId);
+        this.verificarAction(res.data.clientReferenceId, res.data.moduleActionId, res.data);
       }
+
       this.updateStatus(res.data);
       return res.data;
     } catch (err: any) {
@@ -192,7 +199,6 @@ export class ApprovalFlowsService {
         },
       );
       this.verificarActionReacjt(res.data.clientReferenceId, res.data.moduleActionId);
-
       return res.data;
     } catch (err: any) {
       this.logger.error(`rejectedRequest error: ${err.message}`);
@@ -219,13 +225,14 @@ export class ApprovalFlowsService {
     }
   }
 
-  async verificarAction(id: string, moduleId) {
-    const data = await this.getWorkflowByIdClientReference(id, moduleId);
+  async verificarAction(id: string, moduleId, data:any) {
+    // const data = await this.getWorkflowByIdClientReference(id, moduleId);
     if (data.metadata) {
       if (data.metadata.typeModel === "ASSET") {
         if (data.metadata.typeAction === "UPDATE") {
           const dto = { ...data.metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
-          this.assetsService.update(data.clientReferenceId, dto,)
+          await this.assetsService.update(data.clientReferenceId, dto,)
+
           const dtoGeocerca = data.metadata.dtoGeofence;
           if (dtoGeocerca.name) {
             if (dtoGeocerca.idExiting) {
@@ -244,6 +251,14 @@ export class ApprovalFlowsService {
 
           }
         }
+        if (data.metadata.typeAction === "ASSIGNMENT") {
+          await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED);
+        }
+      }
+      if(data.metadata.typeModel === "ASSETDOCUMENT"){
+        if(data.metadata.typeAction === "CHANGES"){
+          await this.assetDocumentsService.update(data.clientReferenceId, data.metadata.dtoDocument);
+        }
       }
     }
   }
@@ -255,7 +270,33 @@ export class ApprovalFlowsService {
         if (data.metadata.typeAction === "UPDATE") {
           this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED);
         }
+        if (data.metadata.typeAction === "ASSIGNMENT") {
+          this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.REJECTED)
+          const d = await this.prisma.assetTelemetryLog.deleteMany({
+            where: {
+              assetId: data.metadata.dto.assetId || data.clientReferenceId,
+            },
+          });
+          await this.prisma.asset.update({
+            where: { id: data.metadata.dto.assetId },
+            data: {
+              lastLocation: null,
+            },
+          });
+
+          await this.prisma.assetTelemetryLog.findMany({
+            where: {
+              assetId: data.metadata.dto.assetId,
+            },
+          });
+        }
       }
+      else if(data.metadata.typeModel === "ASSETDOCUMENT"){
+        if(data.metadata.typeAction === "CHANGES"){
+          await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED);
+        }
+      }
+
     }
   }
 }
