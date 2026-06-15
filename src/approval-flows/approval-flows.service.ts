@@ -152,9 +152,9 @@ export class ApprovalFlowsService {
       );
       return res.data ?? null;
     } catch (err: any) {
-      this.logger.error(
+      /*this.logger.error(
         `getWorkflowByIdClientReference error: ${err.message}`,
-      );
+      );*/
 
       throw new HttpException(
         'Error al obtener workflow',

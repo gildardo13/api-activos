@@ -83,6 +83,11 @@ export class AssetAssignmentsController {
   remove(@Param('id') id: string) {
     return this.assetAssignmentsService.remove(id);
   }
+  @Delete('/delete-definitive/:id')
+  @HttpCode(HttpStatus.OK)
+  removeDefiniti(@Param('id') id: string) {
+    return this.assetAssignmentsService.removeDefinitve(id);
+  }
 
   @Patch('/change-return-status/:id')
   @HttpCode(HttpStatus.OK)
@@ -97,7 +102,7 @@ export class AssetAssignmentsController {
     @Param('id') id: string,
     @Body() updateAssetAssignmentDto: any,
   ) {
-    const [statusApproval,commentsApproval] = updateAssetAssignmentDto
-    return this.assetAssignmentsService.approvalStatus(id, statusApproval,commentsApproval);
+    const { statusApproval, commentsApproval } = updateAssetAssignmentDto;
+    return this.assetAssignmentsService.approvalStatus(id, statusApproval, commentsApproval);
   }
 }

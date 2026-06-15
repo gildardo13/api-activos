@@ -27,7 +27,7 @@ export class AssetAssignmentsService {
       throw new NotFoundException('Asset not found');
     }
 
-    if(asset.statusApproval === "PENDING"){
+    if (asset.statusApproval === "PENDING") {
       throw new BadRequestException('El activo se encuentra en proceso de aprobación');
     }
 
@@ -233,6 +233,24 @@ export class AssetAssignmentsService {
     }
     if (existing.statusReturned !== 'RETURNED') {
       throw new BadRequestException('No se puede eliminar una asignacion si el activo no ha sido devuelto');
+    }
+
+    await this.prisma.assetAssignment.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Assignment deleted successfully',
+    };
+  }
+
+  async removeDefinitve(id: string) {
+    const existing = await this.prisma.assetAssignment.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Assignment not found');
     }
 
     await this.prisma.assetAssignment.delete({
