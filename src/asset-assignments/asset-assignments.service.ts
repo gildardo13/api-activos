@@ -114,9 +114,17 @@ export class AssetAssignmentsService {
           asset: true,
           project: true,
         },
-        orderBy: {
-          createdAt: sortByDate, // Ordena por fecha de creación del registro
-        },
+        orderBy: [
+          {
+            statusReturned: { sort: 'desc', nulls: 'first' }, // Empuja PENDING e IN_USE al final
+          },
+          {
+            createdAt: sortByDate, // Sub-ordenamiento por fecha
+          },
+          {
+            id: 'asc', // Estabilizador de paginación
+          },
+        ],
       }),
     ]);
     return {
@@ -380,9 +388,19 @@ export class AssetAssignmentsService {
           asset: true,
           project: true,
         },
-        orderBy: {
-          createdAt: sortByDate,
-        },
+        orderBy: [
+          {
+            // 1. Mandamos los campos sin estado (nulls) al principio
+            // 2. Al ser 'desc', el orden alfabético empuja la 'I' al fondo (R -> P -> I)
+            statusReturned: { sort: 'desc', nulls: 'first' },
+          },
+          {
+            createdAt: sortByDate, // Sub-ordenamiento por fecha
+          },
+          {
+            id: 'asc', // 🔴 EL TRUCO: Identificador único obligatorio para estabilizar la paginación
+          },
+        ],
       }),
     ]);
 
