@@ -21,6 +21,7 @@ import { AssetDocumentChunksModule } from './asset-document-chunks/asset-documen
 import { ProjectsModule } from './projects/projects.module';
 import { InfoExternalModule } from './info-external/info-external.module';
 import { ApprovalFlowsModule } from './approval-flows/approval-flows.module';
+import { GpsDeviceModule } from './gps-device/gps-device.module';
 
 @Module({
   imports: [
@@ -43,7 +44,8 @@ import { ApprovalFlowsModule } from './approval-flows/approval-flows.module';
     AssetDocumentChunksModule,
     ProjectsModule,
     InfoExternalModule,
-    ApprovalFlowsModule
+    ApprovalFlowsModule,
+    GpsDeviceModule
   ],
   controllers: [],
   providers: [],

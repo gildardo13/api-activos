@@ -16,6 +16,10 @@ export class Asset {
 
   @IsString()
   @IsOptional()
+  gpsDeviceId?: string;
+
+  @IsString()
+  @IsOptional()
   code?: string;
 
   @IsString()

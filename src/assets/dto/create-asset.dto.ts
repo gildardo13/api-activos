@@ -17,6 +17,9 @@ export enum StatusApproval {
 export class CreateAssetDto {
   @IsString()
   assetTypeId: string;
+  @IsOptional()
+  @IsString()
+  gpsDeviceId?: string;
 
   @IsString()
   code: string;
