@@ -4,7 +4,7 @@ import { UpdateAssetAssignmentDto } from './dto/update-asset-assignment.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsAssignmentDto } from './dto/query-asset-assignment.dto';
 import { QueryHistoryAssignmentDto } from './dto/query-history-assignment.dto';
-import { StatusApproval } from '@prisma/client';
+import { StatusApproval, StatusReturn } from '@prisma/client';
 import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service';
 
 @Injectable()
@@ -293,7 +293,9 @@ export class AssetAssignmentsService {
     const { staffId, areaId, projectId, searchTerm, sortByDate = 'desc' } = query;
 
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: any = {
+      statusApproval: 'APPROVED',
+    };
 
     if (projectId) {
       where.projectId = projectId;
@@ -365,7 +367,7 @@ export class AssetAssignmentsService {
     }
 
     // Ejecutamos la consulta en la Base de Datos Local de Activos
-    const [totalDB, items] = await Promise.all([
+    const [total, items] = await Promise.all([
       this.prisma.assetAssignment.count({
         where,
       }),
@@ -384,34 +386,13 @@ export class AssetAssignmentsService {
       }),
     ]);
 
-    const itemsConWorkflow = await Promise.all(
-      items.map(async (item) => {
-        try {
-          const workflowData = await this.approvalFlowsService.getWorkflowByIdClientReference(item.id, this.moduleActionId);
-          return {
-            ...item,
-            statusApproval: workflowData?.status,
-          };
-        } catch (error) {
-          return {
-            ...item,
-            statusApproval: 'error',
-          };
-        }
-      })
-    );
-
-    const itemsAprobados = itemsConWorkflow.filter(item => item.statusApproval === 'approved');
-
-    const totalRealAprobados = itemsAprobados.length;
-
     return {
-      data: itemsAprobados,
+      data: items,
       meta: {
-        total: totalRealAprobados,
+        total,
         page,
         limit,
-        totalPages: Math.ceil(totalRealAprobados / limit),
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -465,14 +446,17 @@ export class AssetAssignmentsService {
   }
 
 
-  async approvalStatus(id: string, status: any, rejectionComment?: string) {
+  async approvalStatus(id: string, status: any, rejectionComment?: string, isreject?: boolean) {
 
     try {
       await this.prisma.assetAssignment.update({
         where: { id },
         data: {
           statusApproval: status as "PENDING" | "APPROVED" | "REJECTED",
-          commentsApproval: rejectionComment
+          commentsApproval: rejectionComment,
+          returnedAt: isreject ? new Date() : null,
+          statusReturned: isreject ? StatusReturn.RETURNED : null,
+
         },
       });
       return {

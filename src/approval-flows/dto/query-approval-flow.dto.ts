@@ -25,3 +25,11 @@ export class QueryAssignmentPending {
   pageSize: number;
 
 }
+
+
+export class InsertSolicitud {
+  @IsOptional()
+  @IsString()
+  typeModel?: string;
+
+}
