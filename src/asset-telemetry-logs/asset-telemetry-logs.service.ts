@@ -359,4 +359,12 @@ export class AssetTelemetryLogsService {
     return listExcesLimit;
   }
 
+
+  async deleteAssetById(assetId: string) {
+    return this.prisma.assetTelemetryLog.deleteMany({
+      where: {
+        assetId: assetId
+      }
+    });
+  }
 }

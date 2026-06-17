@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HelpersModule } from './helpers/helpers.module';
@@ -22,6 +22,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { InfoExternalModule } from './info-external/info-external.module';
 import { ApprovalFlowsModule } from './approval-flows/approval-flows.module';
 import { GpsDeviceModule } from './gps-device/gps-device.module';
+import { GpsModule } from './gps/tcp-server.module';
 
 @Module({
   imports: [
@@ -45,15 +46,21 @@ import { GpsDeviceModule } from './gps-device/gps-device.module';
     ProjectsModule,
     InfoExternalModule,
     ApprovalFlowsModule,
-    GpsDeviceModule
+    GpsDeviceModule,
+    GpsModule
   ],
   controllers: [],
   providers: [],
 })
+
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(SetDatabaseMiddleware)
+      .exclude({
+        path: 'gps/telemetry',
+        method: RequestMethod.POST,
+      })
       .forRoutes('*');
   }
 }
