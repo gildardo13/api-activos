@@ -10,7 +10,12 @@ import {
   HttpStatus,
   Req,
   Query,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
@@ -84,5 +89,53 @@ export class AssetsController {
     @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
   ) {
     return this.assetsService.changeStatus(id, status);
+  }
+
+  @Get('/bulk-template/:assetTypeId')
+  async downloadTemplate(
+    @Param('assetTypeId') assetTypeId: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.assetsService.generateTemplate(assetTypeId);
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="plantilla_activos.xlsx"`,
+      'Content-Length': buffer.length,
+    });
+    return res.end(buffer);
+  }
+
+  @Post('/bulk-upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('assetTypeId') assetTypeId: string,
+    @Res() res: Response,
+  ) {
+    if (!file) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'No se cargó ningún archivo Excel',
+      });
+    }
+
+    const result = await this.assetsService.bulkUpload(file, assetTypeId);
+
+    if (result.pendingFiles && result.data) {
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="instrucciones_archivos.xlsx"`,
+        'Content-Length': result.data.length,
+      });
+      return res.end(result.data);
+    }
+
+    return res.status(HttpStatus.OK).json(result);
+  }
+
+  @Post('/bulk-upload-files')
+  @HttpCode(HttpStatus.OK)
+  async bulkUploadFiles() {
+    return this.assetsService.bulkUploadFiles();
   }
 }

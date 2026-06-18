@@ -6,7 +6,7 @@ import {
   IsString,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { Status } from '@prisma/client';
+import { ClasificationType, Status } from '@prisma/client';
 
 export enum SortOrder {
   ASC = 'asc',
@@ -29,6 +29,10 @@ export class QueryAssetsDto {
   @IsOptional()
   @IsEnum(Status)
   status?: Status;
+
+  @IsOptional()
+  @IsEnum(ClasificationType)
+  clasificationType?: ClasificationType;
 
   @IsOptional()
   @IsString()
