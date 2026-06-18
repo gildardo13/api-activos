@@ -134,19 +134,8 @@ export class AssetsController {
   }
 
   @Post('/bulk-upload-files')
-  @UseInterceptors(FileInterceptor('file'))
-  async bulkUploadFiles(
-    @UploadedFile() file: Express.Multer.File,
-    @Res() res: Response,
-  ) {
-    if (!file) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: 'No se cargó ningún archivo (ZIP o RAR)',
-      });
-    }
-
-    const result = await this.assetsService.bulkUploadFiles(file);
-    return res.status(HttpStatus.OK).json(result);
+  @HttpCode(HttpStatus.OK)
+  async bulkUploadFiles() {
+    return this.assetsService.bulkUploadFiles();
   }
 }
