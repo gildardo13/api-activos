@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { CreateAssetDocumentDto } from './dto/create-asset-document.dto';
 import { UpdateAssetDocumentDto } from './dto/update-asset-document.dto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, StatusApproval } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetDocumentsDto } from './dto/query-asset-documents.dto';
 
@@ -172,6 +172,26 @@ export class AssetDocumentsService {
     return document;
   }
 
+  async updateStatusApproval(id: string, dto: UpdateAssetDocumentDto) {
+    const existing = await this.prisma.assetDocument.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Asset document with ID ${id} not found`);
+    }
+
+    const statusApproval = dto.statusApproval ?? existing.statusApproval;
+    const commentsApproval = dto.commentsApproval ?? existing.commentsApproval;
+    return this.prisma.assetDocument.update({
+      where: { id },
+      data: {
+        statusApproval,
+        commentsApproval,
+      },
+    });
+  }
+
   async update(id: string, dto: UpdateAssetDocumentDto) {
     const existing = await this.prisma.assetDocument.findUnique({
       where: { id },
@@ -304,4 +324,21 @@ export class AssetDocumentsService {
       missingFields,
     };
   }
+
+   async updateStatuApproval(id: string, status: string, rejectionComment?: string) {
+      const existing = await this.prisma.assetDocument.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new NotFoundException('Asset Document not found');
+      }
+     
+      return this.prisma.assetDocument.update({
+        where: { id },
+        data: {
+          statusApproval: status as StatusApproval,
+          commentsApproval: rejectionComment
+        }
+      });
+    }
 }

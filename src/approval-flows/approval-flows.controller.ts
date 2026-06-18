@@ -3,7 +3,7 @@ import { ApprovalFlowsService } from './approval-flows.service';
 import { ApprovedFlowDto, CreateSolicitudDto } from './dto/create-approval-flow.dto';
 import { UpdateApprovalFlowDto } from './dto/update-approval-flow.dto';
 import { resolveModuleAction } from './helper/helper';
-import { QueryAssignmentPending } from './dto/query-approval-flow.dto';
+import { InsertSolicitud, QueryAssignmentPending } from './dto/query-approval-flow.dto';
 
 @Controller('approval-flows')
 export class ApprovalFlowsController {
@@ -16,8 +16,8 @@ export class ApprovalFlowsController {
   }
 
   @Post('/createSolicitud')
-  createSolicitud(@Body() request: CreateSolicitudDto) {
-    const resolvedRequest = resolveModuleAction(request);
+  createSolicitud(@Query() query: InsertSolicitud, @Body() request: CreateSolicitudDto) {
+    const resolvedRequest = resolveModuleAction(request, query.typeModel);
     return this.approvalFlowsService.createSolicitud(resolvedRequest, this.moduleId);
   }
 
@@ -37,7 +37,12 @@ export class ApprovalFlowsController {
     return this.approvalFlowsService.rejectedRequest(request, this.moduleId);
   }
 
-
-
+  @Get('/getWorkflowByClientRef/:clientReferenceId/:moduleActionId')
+  getWorkflowByIdClientReference(
+    @Param('clientReferenceId') clientReferenceId: string,
+    @Param('moduleActionId') moduleActionId: string
+  ) {
+    return this.approvalFlowsService.getWorkflowByIdClientReference(clientReferenceId, moduleActionId);
+  }
 
 }

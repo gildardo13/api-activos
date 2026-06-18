@@ -1,4 +1,4 @@
-import { StatusReturn } from "@prisma/client";
+import { StatusApproval, StatusReturn } from "@prisma/client";
 
 export class AssetAssignment {
     id: string;
@@ -12,4 +12,7 @@ export class AssetAssignment {
     statusReturned?: StatusReturn;
     createdAt: Date;
     updatedAt: Date;
+    statusApproval?: StatusApproval;
+    commentsApproval?: string;
+
 }

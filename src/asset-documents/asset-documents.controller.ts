@@ -56,6 +56,15 @@ export class AssetDocumentsController {
     return this.assetDocumentsService.update(id, updateAssetDocumentDto);
   }
 
+  @Patch('/status-approval/:id')
+  @HttpCode(HttpStatus.OK)
+  updateStatusApproval(
+    @Param('id') id: string,
+    @Body() updateAssetDocumentDto: UpdateAssetDocumentDto,
+  ) {
+    return this.assetDocumentsService.updateStatusApproval(id, updateAssetDocumentDto);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string) {

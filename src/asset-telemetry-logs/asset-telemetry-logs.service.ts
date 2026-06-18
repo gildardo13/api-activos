@@ -99,12 +99,28 @@ export class AssetTelemetryLogsService {
 
   // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
   async findAllLatest() {
-    // 1. Obtenemos los assets filtrando desde la BD que tengan un 'lastLocation' válido
+    // 1. Obtenemos los assets aplicando las reglas de exclusión desde la BD
     const listAsset = await this.prisma.asset.findMany({
       where: {
         AND: [
           { lastLocation: { not: null } },
-          { lastLocation: { not: "" } }
+          { lastLocation: { not: "" } },
+          // Regla 1: El activo por sí mismo no debe estar PENDING
+          {
+            statusApproval: {
+              notIn: ['PENDING']
+            }
+          },
+          // Regla 2: EXCLUIR el activo si tiene ALGUNA asignación en PENDING o REJECTED
+          {
+            assetAssignments: {
+              none: {
+                statusApproval: {
+                  in: ['PENDING'] // Si encuentra una asignación aquí, saca el Asset completo
+                }
+              }
+            }
+          }
         ]
       },
       include: {
@@ -112,12 +128,12 @@ export class AssetTelemetryLogsService {
       }
     });
 
-    // 2. Extraemos los IDs asegurándonos doblemente en JS que no pasen vacíos o nulos
+    // 2. Extraemos los IDs asegurándonos que no pasen vacíos o nulos
     const telemetryIds = listAsset
       .map((item) => item.lastLocation)
       .filter((id): id is string => typeof id === "string" && id.trim() !== "");
 
-    // Si ningún asset tiene telemetría válida, evitamos una consulta innecesaria a la BD
+    // Si ningún asset tiene telemetría válida o todos fueron excluidos, evitamos la consulta
     if (telemetryIds.length === 0) {
       return [];
     }
@@ -129,14 +145,13 @@ export class AssetTelemetryLogsService {
       },
     });
 
-
+    // 4. Retornamos la combinación de telemetría y su correspondiente Asset limpio
     return listAsset.map((asset) => {
       const telemetry = telemetries.find((t) => t.id === asset.lastLocation);
-      const data = {
+      return {
         ...telemetry,
         assetId: asset
-      }
-      return data
+      };
     });
   }
   // OBTENER TODO (Logs históricos + Últimas ubicaciones agrupadas)
@@ -344,4 +359,12 @@ export class AssetTelemetryLogsService {
     return listExcesLimit;
   }
 
+
+  async deleteAssetById(assetId: string) {
+    return this.prisma.assetTelemetryLog.deleteMany({
+      where: {
+        assetId: assetId
+      }
+    });
+  }
 }

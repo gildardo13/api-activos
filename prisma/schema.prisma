@@ -63,6 +63,7 @@ model AssetType {
 model Asset {
   id          String   @id @default(uuid())
   assetTypeId String
+  gpsDeviceId String?
   code String
   name String
   description String?
@@ -70,7 +71,10 @@ model Asset {
   lastLocation String?
   attributesData Json?
   statusApproval StatusApproval?
+  commentsApproval String?
 
+  
+  gpsDevice GpsDevice? @relation(fields: [gpsDeviceId], references: [id])
   assetTelemetryLogs  AssetTelemetryLog[]
   assetDocuments AssetDocument[]
   assetGeofences AssetGeofence[]
@@ -89,6 +93,7 @@ model AssetTelemetryLog {
   latitud String
   longitud String
   speed String
+  imei String?
   recordedAt DateTime @default(now())
 
   asset Asset @relation(fields: [assetId], references: [id])
@@ -97,6 +102,19 @@ model AssetTelemetryLog {
   updatedAt DateTime @updatedAt
 
   @@index([assetId])
+}
+
+model GpsDevice {
+  id String @id @default(uuid())
+  imei String @unique
+  model String?
+  phoneNumber String?
+  providerCompany String?
+  assets Asset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([imei])
 }
 
 model AssetFieldDefinition {
@@ -127,6 +145,7 @@ model AssetDocument {
   fileUrl String
   uploadedAt DateTime @default(now())
   statusApproval StatusApproval?
+  commentsApproval String?
 
   assetDocumentChunks  AssetDocumentChunk[]
   asset Asset @relation(fields: [assetId], references: [id])
@@ -179,6 +198,7 @@ model AssetAssignment {
   returnedAt DateTime?
   statusReturned StatusReturn?
   statusApproval StatusApproval?
+  commentsApproval String?
 
   asset Asset @relation(fields: [assetId], references: [id])
   project   Project?   @relation(fields: [projectId], references: [id])

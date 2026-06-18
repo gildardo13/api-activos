@@ -4,7 +4,7 @@ import { UpdateAssetAssignmentDto } from './dto/update-asset-assignment.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsAssignmentDto } from './dto/query-asset-assignment.dto';
 import { QueryHistoryAssignmentDto } from './dto/query-history-assignment.dto';
-import { StatusApproval } from '@prisma/client';
+import { StatusApproval, StatusReturn } from '@prisma/client';
 import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service';
 
 @Injectable()
@@ -27,7 +27,7 @@ export class AssetAssignmentsService {
       throw new NotFoundException('Asset not found');
     }
 
-    if(asset.statusApproval === "PENDING"){
+    if (asset.statusApproval === "PENDING") {
       throw new BadRequestException('El activo se encuentra en proceso de aprobación');
     }
 
@@ -114,9 +114,17 @@ export class AssetAssignmentsService {
           asset: true,
           project: true,
         },
-        orderBy: {
-          createdAt: sortByDate, // Ordena por fecha de creación del registro
-        },
+        orderBy: [
+          {
+            statusReturned: { sort: 'desc', nulls: 'first' }, // Empuja PENDING e IN_USE al final
+          },
+          {
+            createdAt: sortByDate, // Sub-ordenamiento por fecha
+          },
+          {
+            id: 'asc', // Estabilizador de paginación
+          },
+        ],
       }),
     ]);
     return {
@@ -244,6 +252,24 @@ export class AssetAssignmentsService {
     };
   }
 
+  async removeDefinitve(id: string) {
+    const existing = await this.prisma.assetAssignment.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Assignment not found');
+    }
+
+    await this.prisma.assetAssignment.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Assignment deleted successfully',
+    };
+  }
+
   // 4. return asset (cerrar asignación)
   async returnAsset(id: string) {
     const assignment = await this.prisma.assetAssignment.findUnique({
@@ -275,7 +301,9 @@ export class AssetAssignmentsService {
     const { staffId, areaId, projectId, searchTerm, sortByDate = 'desc' } = query;
 
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: any = {
+      statusApproval: 'APPROVED',
+    };
 
     if (projectId) {
       where.projectId = projectId;
@@ -347,7 +375,7 @@ export class AssetAssignmentsService {
     }
 
     // Ejecutamos la consulta en la Base de Datos Local de Activos
-    const [totalDB, items] = await Promise.all([
+    const [total, items] = await Promise.all([
       this.prisma.assetAssignment.count({
         where,
       }),
@@ -360,40 +388,29 @@ export class AssetAssignmentsService {
           asset: true,
           project: true,
         },
-        orderBy: {
-          createdAt: sortByDate,
-        },
+        orderBy: [
+          {
+            // 1. Mandamos los campos sin estado (nulls) al principio
+            // 2. Al ser 'desc', el orden alfabético empuja la 'I' al fondo (R -> P -> I)
+            statusReturned: { sort: 'desc', nulls: 'first' },
+          },
+          {
+            createdAt: sortByDate, // Sub-ordenamiento por fecha
+          },
+          {
+            id: 'asc', // 🔴 EL TRUCO: Identificador único obligatorio para estabilizar la paginación
+          },
+        ],
       }),
     ]);
 
-    const itemsConWorkflow = await Promise.all(
-      items.map(async (item) => {
-        try {
-          const workflowData = await this.approvalFlowsService.getWorkflowByIdClientReference(item.id, this.moduleActionId);
-          return {
-            ...item,
-            statusApproval: workflowData?.status,
-          };
-        } catch (error) {
-          return {
-            ...item,
-            statusApproval: 'error',
-          };
-        }
-      })
-    );
-
-    const itemsAprobados = itemsConWorkflow.filter(item => item.statusApproval === 'approved');
-
-    const totalRealAprobados = itemsAprobados.length;
-
     return {
-      data: itemsAprobados,
+      data: items,
       meta: {
-        total: totalRealAprobados,
+        total,
         page,
         limit,
-        totalPages: Math.ceil(totalRealAprobados / limit),
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -446,13 +463,18 @@ export class AssetAssignmentsService {
     });
   }
 
-  async approvalStatus(id: string, status: any) {
+
+  async approvalStatus(id: string, status: any, rejectionComment?: string, isreject?: boolean) {
 
     try {
       await this.prisma.assetAssignment.update({
         where: { id },
         data: {
           statusApproval: status as "PENDING" | "APPROVED" | "REJECTED",
+          commentsApproval: rejectionComment,
+          returnedAt: isreject ? new Date() : null,
+          statusReturned: isreject ? StatusReturn.RETURNED : null,
+
         },
       });
       return {

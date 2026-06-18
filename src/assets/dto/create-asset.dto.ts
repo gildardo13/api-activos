@@ -17,6 +17,9 @@ export enum StatusApproval {
 export class CreateAssetDto {
   @IsString()
   assetTypeId: string;
+  @IsOptional()
+  @IsString()
+  gpsDeviceId?: string;
 
   @IsString()
   code: string;
@@ -37,9 +40,13 @@ export class CreateAssetDto {
   lastLocation?: string;
 
   @IsOptional()
-  attributesData?: Prisma.InputJsonValue;
+  attributesData?: any;
 
   @IsOptional()
   @IsEnum(StatusApproval)
   statusApproval?: StatusApproval;
+
+  @IsOptional()
+  @IsString()
+  commentsApproval?: string;
 }

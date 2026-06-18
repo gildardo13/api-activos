@@ -12,8 +12,7 @@ import { UpdateAssetDto } from './dto/update-asset.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsDto } from './dto/query-asset.dto';
 import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service';
-import { resolveModuleAction } from 'src/approval-flows/helper/helper';
-import { assert } from 'console';
+
 
 @Injectable()
 export class AssetsService {
@@ -53,9 +52,11 @@ export class AssetsService {
         status: dto.status,
         lastLocation: dto.lastLocation,
         attributesData: dto.attributesData as Prisma.InputJsonValue,
+        gpsDeviceId: dto.gpsDeviceId || null,
       },
       include: {
         assetType: true,
+        gpsDevice: true,
       },
     });
 
@@ -107,6 +108,7 @@ export class AssetsService {
       },
       include: {
         assetType: true,
+        gpsDevice: true,
       },
     });
 
@@ -192,6 +194,7 @@ export class AssetsService {
           assetDocuments: true,
           assetGeofences: true,
           assetAssignments: true,
+          gpsDevice: true,
         },
 
         orderBy: {
@@ -261,6 +264,7 @@ export class AssetsService {
         assetDocuments: true,
         assetGeofences: true,
         assetAssignments: true,
+        gpsDevice: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -322,10 +326,14 @@ export class AssetsService {
           description: dto.description,
           status: dto.status,
           lastLocation: dto.lastLocation,
-          statusApproval: dto.statusApproval
+          statusApproval: dto.statusApproval,
+          commentsApproval: dto.commentsApproval,
+          gpsDeviceId: dto.gpsDeviceId || null,
+
         },
         include: {
           assetType: true,
+          gpsDevice: true,
         },
       });
     }
@@ -402,14 +410,19 @@ export class AssetsService {
         lastLocation: dto.lastLocation,
         attributesData: updatedAttributes as Prisma.InputJsonValue,
         statusApproval: dto.statusApproval,
+        commentsApproval: dto.commentsApproval,
+        gpsDeviceId: dto.gpsDeviceId || null,
+
       },
       include: {
         assetType: true,
+        gpsDevice: true
       },
     });
   }
 
-  async updateStatuApproval(id: string, status: string) {
+
+  async updateStatuApproval(id: string, status: string, rejectionComment?: string) {
     const existing = await this.prisma.asset.findUnique({
       where: { id },
     });
@@ -419,7 +432,8 @@ export class AssetsService {
     return this.prisma.asset.update({
       where: { id },
       data: {
-        statusApproval: status as StatusApproval
+        statusApproval: status as StatusApproval,
+        commentsApproval: rejectionComment
       },
       include: {
         assetType: true,

@@ -1,3 +1,5 @@
+import { StatusApproval } from "@prisma/client";
+
 export class AssetDocument {
   id: string;
   fieldDefinitionId: string;
@@ -7,4 +9,6 @@ export class AssetDocument {
   uploadedAt: Date;
   createdAt: Date;
   updatedAt: Date;
+  statusApproval?: StatusApproval;
+  commentsApproval?: string;
 }

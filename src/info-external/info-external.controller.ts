@@ -50,5 +50,19 @@ export class InfoExternalController {
   getCredentailsByStaffId(@Param('id') id: string) {
     return this.infoExternalService.getCredentailsByStaffId(id);
   }
-}
 
+  @Post('/getStaffByIds')
+  getStaffByIds(@Body('ids') ids: string[]) {
+    return this.infoExternalService.getStaffByIds(ids);
+  }
+
+  @Get('/getPositions')
+  getPositions() {
+    return this.infoExternalService.getPositions();
+  }
+
+  @Post('/getPositionsByIds')
+  getPositionsByIds(@Body('ids') ids: string[]) {
+    return this.infoExternalService.getPositionsByIds(ids);
+  }
+}

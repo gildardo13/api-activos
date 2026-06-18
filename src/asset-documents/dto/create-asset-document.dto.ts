@@ -25,4 +25,8 @@ export class CreateAssetDocumentDto {
   @IsOptional()
   @IsEnum(StatusApproval)
   statusApproval?: StatusApproval;
+
+  @IsOptional()
+  @IsString()
+  commentsApproval?: string;
 }

@@ -10,6 +10,9 @@ import { UpdateAssetDto } from 'src/assets/dto/update-asset.dto';
 import { UpdateAssetGeofenceDto } from 'src/asset-geofences/dto/update-asset-geofence.dto';
 import { AssetGeofencesService } from 'src/asset-geofences/asset-geofences.service';
 import { StatusApproval } from 'src/assets/dto/create-asset.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { AssetDocumentsService } from 'src/asset-documents/asset-documents.service';
+
 
 @Injectable({ scope: Scope.REQUEST })
 export class ApprovalFlowsService {
@@ -17,6 +20,8 @@ export class ApprovalFlowsService {
   private readonly logger = new Logger(ApprovalFlowsService.name);
 
   constructor(
+
+    private readonly prisma: PrismaService,
     @Inject(REQUEST)
     private readonly request: Request,
 
@@ -27,7 +32,11 @@ export class ApprovalFlowsService {
     private readonly assetsService: AssetsService,
 
     @Inject(forwardRef(() => AssetGeofencesService))
-    private readonly geocercaService: AssetGeofencesService
+    private readonly geocercaService: AssetGeofencesService,
+
+    @Inject(forwardRef(() => AssetDocumentsService))
+    private readonly assetDocumentsService: AssetDocumentsService
+
   ) { }
 
   private get _token(): string {
@@ -111,11 +120,19 @@ export class ApprovalFlowsService {
 
   async createSolicitud(request: CreateSolicitudDto, moduleId: string) {
     try {
-      const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
+      /*const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
         headers: this.buildHeaders(),
       });
+      if (res.data === null || res.data === undefined || (Array.isArray(res.data) && res.data.length === 0) || (typeof res.data === "object" && !Array.isArray(res.data) && Object.keys(res.data).length === 0)
+      ) {
+        return [];
+      }
 
-      return res.data;
+      return res.data;*/
+
+      return [];
+
+
     } catch (err: any) {
       console.log('STATUS:', err.response?.status);
       console.log('DATA:', err.response?.data);
@@ -143,12 +160,11 @@ export class ApprovalFlowsService {
           headers: this.buildHeaders(),
         },
       );
-
       return res.data ?? null;
     } catch (err: any) {
-      this.logger.error(
+      /*this.logger.error(
         `getWorkflowByIdClientReference error: ${err.message}`,
-      );
+      );*/
 
       throw new HttpException(
         'Error al obtener workflow',
@@ -168,8 +184,9 @@ export class ApprovalFlowsService {
         },
       );
       if (res.data.status === "approved") {
-        this.verificarAction(res.data.clientReferenceId, res.data.moduleActionId);
+        this.verificarAction(res.data.clientReferenceId, res.data.moduleActionId, res.data);
       }
+
       this.updateStatus(res.data);
       return res.data;
     } catch (err: any) {
@@ -191,8 +208,7 @@ export class ApprovalFlowsService {
           headers: this.buildHeaders(),
         },
       );
-      this.verificarActionReacjt(res.data.clientReferenceId, res.data.moduleActionId);
-
+      this.verificarActionReacjt(res.data.clientReferenceId, res.data.moduleActionId, res.data);
       return res.data;
     } catch (err: any) {
       this.logger.error(`rejectedRequest error: ${err.message}`);
@@ -219,43 +235,80 @@ export class ApprovalFlowsService {
     }
   }
 
-  async verificarAction(id: string, moduleId) {
-    const data = await this.getWorkflowByIdClientReference(id, moduleId);
-    if (data.metadata) {
-      if (data.metadata.typeModel === "ASSET") {
-        if (data.metadata.typeAction === "UPDATE") {
-          const dto = { ...data.metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
-          this.assetsService.update(data.clientReferenceId, dto,)
-          const dtoGeocerca = data.metadata.dtoGeofence;
-          if (dtoGeocerca.name) {
-            if (dtoGeocerca.idExiting) {
-              this.geocercaService.update(dtoGeocerca.idExiting, {
-                name: dtoGeocerca.name,
-                coordinates: dtoGeocerca.coordinates,
-              })
-            } else {
-              this.geocercaService.create({
-                assetId: data.clientReferenceId,
-                name: dtoGeocerca.name,
-                coordinates: dtoGeocerca.coordinates,
-                status: dtoGeocerca.status
-              })
-            }
 
+  async verificarAction(id: string, moduleId, data: any) {
+    // const data = await this.getWorkflowByIdClientReference(id, moduleId);
+    const approvedStep = data.steps.find(
+      (step) => step.order === data.steps.length
+    );
+    const approvedComment = approvedStep?.comments ?? null;
+    if (data) {
+      if (data.moduleAction.key === "update") {
+        const dto = { ...data.metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
+        await this.assetsService.update(data.clientReferenceId, dto,)
+        await this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment)
+        const dtoGeocerca = data.metadata.dtoGeofence;
+        if (dtoGeocerca.name) {
+          if (dtoGeocerca.idExiting) {
+            this.geocercaService.update(dtoGeocerca.idExiting, {
+              name: dtoGeocerca.name,
+              coordinates: dtoGeocerca.coordinates,
+            })
+          } else {
+            this.geocercaService.create({
+              assetId: data.clientReferenceId,
+              name: dtoGeocerca.name,
+              coordinates: dtoGeocerca.coordinates,
+              status: dtoGeocerca.status
+            })
           }
+
         }
+      }
+      else if (data.moduleAction.key === "assignment") {
+        await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
+      }
+      if (data.moduleAction.key === "changes") {
+        await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
+        await this.assetDocumentsService.update(data.clientReferenceId, data.metadata.dtoDocument);
+
       }
     }
   }
 
-  async verificarActionReacjt(id: string, moduleId) {
-    const data = await this.getWorkflowByIdClientReference(id, moduleId);
-    if (data.metadata) {
-      if (data.metadata.typeModel === "ASSET") {
-        if (data.metadata.typeAction === "UPDATE") {
-          this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED);
-        }
+  async verificarActionReacjt(id: string, moduleId, data: any) {
+    const rejectedStep = data.steps.find(
+      (step) => step.status === 'rejected'
+    );
+    const rejectionComment = rejectedStep?.comments ?? null;
+    if (data) {
+      if (data.moduleAction.key === "update") {
+        this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
       }
+      else if (data.moduleAction.key === "assignment") {
+        this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment, true)
+        const d = await this.prisma.assetTelemetryLog.deleteMany({
+          where: {
+            assetId: data.metadata.dto.assetId || data.clientReferenceId,
+          },
+        });
+        await this.prisma.asset.update({
+          where: { id: data.metadata.dto.assetId },
+          data: {
+            lastLocation: null,
+          },
+        });
+
+        await this.prisma.assetTelemetryLog.findMany({
+          where: {
+            assetId: data.metadata.dto.assetId,
+          },
+        });
+      }
+      else if (data.moduleAction.key === "changes") {
+        await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
+      }
+
     }
   }
 }

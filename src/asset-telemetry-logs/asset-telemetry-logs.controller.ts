@@ -104,4 +104,10 @@ export class AssetTelemetryLogsController {
   verifyLimit() {
     return this.assetTelemetryLogsService.veriGlobal();
   }
+
+  @Delete('/deleteAssetById/:assetId')
+  @HttpCode(HttpStatus.OK)
+  deleteAssetById(@Param('assetId') assetId: string) {
+    return this.assetTelemetryLogsService.deleteAssetById(assetId);
+  }
 }

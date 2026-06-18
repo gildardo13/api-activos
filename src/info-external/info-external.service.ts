@@ -350,4 +350,47 @@ export class InfoExternalService {
     }
   }
 
+  async getStaffByIds(ids: string[]): Promise<RhStaffItem[]> {
+    try {
+      const all = await this.getStaffRh();
+      const idSet = new Set(ids);
+      return all.filter((s) => idSet.has(s.id));
+    } catch (err: any) {
+      this.logger.error(`getStaffByIds error: ${err.message}`);
+      throw new HttpException('Error al obtener staff por ids', HttpStatus.BAD_GATEWAY);
+    }
+  }
+
+  async getPositions(): Promise<any[]> {
+    try {
+      const res = await this.rhApi().get<any>(`position/selector_list`, {
+        headers: this.buildHeaders(),
+      });
+      const raw: any[] = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+      return raw.map((item) => ({
+        id: String(item.value ?? item.id ?? ''),
+        name: String(item.label ?? item.name ?? 'Puesto sin nombre'),
+      }));
+    } catch (err: any) {
+      this.logger.error(`getPositions error: ${err.message}`);
+      throw new HttpException('Error al obtener puestos', HttpStatus.BAD_GATEWAY);
+    }
+  }
+
+  async getPositionsByIds(ids: string[]): Promise<any[]> {
+    try {
+      const all = await this.getPositions();
+      const idSet = new Set(ids);
+      return all.filter((p) => idSet.has(p.id));
+    } catch (err: any) {
+      this.logger.error(`getPositionsByIds error: ${err.message}`);
+      throw new HttpException('Error al obtener puestos por ids', HttpStatus.BAD_GATEWAY);
+    }
+  }
+
 }
+
