@@ -306,6 +306,7 @@ export class AssetsService {
         assetDocuments: true,
         assetGeofences: true,
         assetAssignments: true,
+        gpsDevice: true,
       },
     });
 

@@ -66,6 +66,12 @@ export class AssetsController {
     return this.assetsService.findOne(id);
   }
 
+  @Get('/getOneAssetById/:id')
+  @HttpCode(HttpStatus.OK)
+  getOneAssetById(@Param('id') id: string) {
+    return this.assetsService.findOne(id);
+  }
+
   @Patch('/:id')
   @HttpCode(HttpStatus.OK)
   update(
