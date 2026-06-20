@@ -95,6 +95,11 @@ export class AssetDocumentsService {
 
     const where: any = {};
 
+    await this.prisma.assetDocument.deleteMany({
+      where: {
+        fileUrl: "" as any,
+      },
+    });
     // ── Búsqueda ──────────────────────────────────────
     if (searchTerm) {
       where.OR = [
@@ -325,20 +330,20 @@ export class AssetDocumentsService {
     };
   }
 
-   async updateStatuApproval(id: string, status: string, rejectionComment?: string) {
-      const existing = await this.prisma.assetDocument.findUnique({
-        where: { id },
-      });
-      if (!existing) {
-        throw new NotFoundException('Asset Document not found');
-      }
-     
-      return this.prisma.assetDocument.update({
-        where: { id },
-        data: {
-          statusApproval: status as StatusApproval,
-          commentsApproval: rejectionComment
-        }
-      });
+  async updateStatuApproval(id: string, status: string, rejectionComment?: string) {
+    const existing = await this.prisma.assetDocument.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Asset Document not found');
     }
+
+    return this.prisma.assetDocument.update({
+      where: { id },
+      data: {
+        statusApproval: status as StatusApproval,
+        commentsApproval: rejectionComment
+      }
+    });
+  }
 }
