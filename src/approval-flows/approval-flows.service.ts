@@ -120,7 +120,7 @@ export class ApprovalFlowsService {
 
   async createSolicitud(request: CreateSolicitudDto, moduleId: string) {
     try {
-      const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
+      /*const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
         headers: this.buildHeaders(),
       });
       if (res.data === null || res.data === undefined || (Array.isArray(res.data) && res.data.length === 0) || (typeof res.data === "object" && !Array.isArray(res.data) && Object.keys(res.data).length === 0)
@@ -128,9 +128,9 @@ export class ApprovalFlowsService {
         return [];
       }
 
-      return res.data;
+      return res.data;*/
 
-      //return [];
+      return [];
 
 
     } catch (err: any) {
@@ -266,6 +266,7 @@ export class ApprovalFlowsService {
         }
       }
       else if (data.moduleAction.key === "assignment") {
+        console.log("bien:(")
         await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
       }
       if (data.moduleAction.key === "changes") {

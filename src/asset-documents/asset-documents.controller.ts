@@ -29,6 +29,12 @@ export class AssetDocumentsController {
     return this.assetDocumentsService.create(createAssetDocumentDto);
   }
 
+  @Get('/get-total')
+  @HttpCode(HttpStatus.OK)
+  getTotalInvoice() {
+    return this.assetDocumentsService.getTotal();
+  }
+
   @Get('/get-all')
   @HttpCode(HttpStatus.OK)
   findAll( @Query() query: QueryAssetDocumentsDto) {

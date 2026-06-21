@@ -83,6 +83,12 @@ export class AssetDocumentsService {
     });
   }
 
+  async getTotal() {
+    const total = await this.prisma.assetDocument.findMany();
+    return total.length;
+
+  }
+
   async findAll(query: QueryAssetDocumentsDto) {
     const {
       page = 1,

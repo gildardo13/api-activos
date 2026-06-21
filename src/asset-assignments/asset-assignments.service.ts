@@ -477,6 +477,7 @@ export class AssetAssignmentsService {
 
         },
       });
+      
       return {
         message: 'Assignment updated successfully',
       };
