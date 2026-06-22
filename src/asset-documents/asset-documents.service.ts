@@ -427,7 +427,6 @@ export class AssetDocumentsService {
     }
 
     // 2. Si no existe, subirlo
-    // 2. Si no existe, subirlo
     if (!aiDocId) {
       this.logger.log(`Document ${document.fileName} not found in AI service. Uploading...`);
       try {
@@ -474,7 +473,6 @@ export class AssetDocumentsService {
       }
     }
 
-    // 3. Ejecutar query RAG
     // 3. Ejecutar query RAG
     try {
       this.logger.log(`Querying RAG: "${query}" for document: ${aiDocId}`);
