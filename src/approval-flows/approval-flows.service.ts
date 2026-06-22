@@ -266,7 +266,6 @@ export class ApprovalFlowsService {
         }
       }
       else if (data.moduleAction.key === "assignment") {
-        console.log("bien:(")
         await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
       }
       if (data.moduleAction.key === "changes") {
