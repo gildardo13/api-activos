@@ -8,7 +8,6 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
-  Req,
   Query,
 } from '@nestjs/common';
 import { AssetDocumentsService } from './asset-documents.service';
@@ -16,10 +15,19 @@ import { CreateAssetDocumentDto } from './dto/create-asset-document.dto';
 import { UpdateAssetDocumentDto } from './dto/update-asset-document.dto';
 import { PrismaClient } from '@prisma/client';
 import { QueryAssetDocumentsDto } from './dto/query-asset-documents.dto';
+import { AppRequest } from '../middlewares/set-database.middleware';
 
 @Controller('asset-documents')
 export class AssetDocumentsController {
   constructor(private readonly assetDocumentsService: AssetDocumentsService) {}
+
+  @Post('/analyze')
+  @HttpCode(HttpStatus.OK)
+  analyze(
+    @Body() body: { documentId: string; query: string },
+  ) {
+    return this.assetDocumentsService.analyze(body.documentId, body.query);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
