@@ -37,7 +37,10 @@ export class SetDatabaseMiddleware implements NestMiddleware {
 
 
     if (process.env.CONTROL_ACTIVOS_ENV === 'dev') {
-      let empresa = (req.headers['empresa'] as string | undefined) || (req.headers['organizationid'] as string | undefined);
+      let empresa = (req.headers['empresa'] as string | undefined) 
+        || (req.headers['organizationid'] as string | undefined)
+        || (req.headers['x-tenant-id'] as string | undefined)
+        || (req.headers['tenantid'] as string | undefined);
       if (!empresa) {
         if (process.env.DATABASE_URL) {
           const match = process.env.DATABASE_URL.match(/\/([^/]+)_activos/);
@@ -120,7 +123,9 @@ export class SetDatabaseMiddleware implements NestMiddleware {
       * LEGACY (header empresa)
       * -------------------------------------------------- */
       // header empresa (flujo legacy)
-      const headerEmpresa = req.headers['empresa'] as string | undefined;
+      const headerEmpresa = (req.headers['empresa'] ||
+        req.headers['x-tenant-id'] ||
+        req.headers['tenantid']) as string | undefined;
 
       if (headerEmpresa) {
         const prisma =

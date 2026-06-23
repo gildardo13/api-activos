@@ -105,18 +105,21 @@ export class AssetTelemetryLogsService {
         AND: [
           { lastLocation: { not: null } },
           { lastLocation: { not: "" } },
-          // Regla 1: El activo por sí mismo no debe estar PENDING
+
+          // Regla 1 CORREGIDA: Permite nulos y estados diferentes a PENDING
           {
-            statusApproval: {
-              notIn: ['PENDING']
-            }
+            OR: [
+              { statusApproval: { not: 'PENDING' } },
+              { statusApproval: null }
+            ]
           },
-          // Regla 2: EXCLUIR el activo si tiene ALGUNA asignación en PENDING o REJECTED
+
+          // Regla 2: (Se mantiene igual por ahora)
           {
             assetAssignments: {
               none: {
                 statusApproval: {
-                  in: ['PENDING'] // Si encuentra una asignación aquí, saca el Asset completo
+                  in: ['PENDING']
                 }
               }
             }

@@ -369,6 +369,25 @@ export class AssetsService {
 
     // 4. Procesar atributos dinámicos uno a uno
     for (const attribute of attributes) {
+      if (!attribute.value
+      ) {
+        const fieldDef = await this.prisma.assetFieldDefinition.findUnique({
+          where: { id: attribute.idField },
+        });
+        if (fieldDef.fieldType === 'FILE') {
+          const oldDocument = await this.prisma.assetDocument.findFirst({
+            where: {
+              assetId: id,
+              fieldDefinitionId: attribute.idField,
+            },
+          });
+          if (oldDocument) {
+            await this.prisma.assetDocument.delete({
+              where: { id: oldDocument.id },
+            });
+          }
+        }
+      }
       const fieldDef = await this.prisma.assetFieldDefinition.findUnique({
         where: { id: attribute.idField },
       });
@@ -711,245 +730,245 @@ export class AssetsService {
   }
 
   async bulkUpload(file: Express.Multer.File, assetTypeId: string): Promise<{ success: boolean; data?: Buffer; message: string; pendingFiles: boolean }> {
-  const assetType = await this.prisma.assetType.findUnique({
-    where: { id: assetTypeId },
-    include: { assetFieldDefinitions: true },
-  });
+    const assetType = await this.prisma.assetType.findUnique({
+      where: { id: assetTypeId },
+      include: { assetFieldDefinitions: true },
+    });
 
-  if (!assetType) {
-    throw new NotFoundException('Asset type not found');
-  }
-
-  const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
-  const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
-
-  if (jsonData.length <= 1) {
-    throw new BadRequestException('El archivo Excel está vacío o no contiene filas de datos');
-  }
-
-  const headers = jsonData[0];
-  const colMap: Record<number, string> = {};
-
-  headers.forEach((header: string, index: number) => {
-    if (!header) return;
-
-    // 1. Quitar las opciones entre paréntesis del final (ej: " (Opcion1, Opcion2)")
-    let cleanHeader = header.replace(/\s*\([^)]*\)$/, '');
-    // 2. Quitar el asterisco de campo obligatorio y espacios extra
-    cleanHeader = cleanHeader.replace(/\s*\*\s*$/, '').trim();
-
-    // Pasar a minúsculas y quitar tildes
-    const cleanLower = cleanHeader.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    // CORRECCIÓN: Validar si incluye o coincide con el nombre de la plantilla base
-    if (cleanLower === 'codigo' || cleanLower === 'code' || cleanLower.includes('codigo del activo')) {
-      colMap[index] = 'code';
-    } else if (cleanLower === 'nombre' || cleanLower === 'name' || cleanLower.includes('nombre del activo')) {
-      colMap[index] = 'name';
-    } else if (cleanLower === 'descripcion' || cleanLower === 'description') {
-      colMap[index] = 'description';
-    } else {
-      const matchedField = assetType.assetFieldDefinitions.find(
-        (f) => f.fieldType !== 'FILE' && f.label.toLowerCase().trim() === cleanHeader.toLowerCase()
-      );
-      if (matchedField) {
-        colMap[index] = matchedField.id;
-      }
-    }
-  });
-
-  const requiredKeys = ['code', 'name'];
-  const mappedValues = Object.values(colMap);
-  for (const reqKey of requiredKeys) {
-    if (!mappedValues.includes(reqKey)) {
-      throw new BadRequestException(`El archivo Excel no contiene la columna requerida: ${reqKey === 'code' ? 'Código' : 'Nombre'}`);
-    }
-  }
-
-  const rows = jsonData.slice(1);
-  const errors: { row: number; error: string }[] = [];
-  const parsedAssets: any[] = [];
-  const seenCodes = new Set<string>();
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.every((cell: any) => cell === null || cell === undefined || String(cell).trim() === '')) {
-      continue;
+    if (!assetType) {
+      throw new NotFoundException('Asset type not found');
     }
 
-    // Se mantiene por retrocompatibilidad si suben una plantilla vieja con la leyenda
-    if (row.some((cell: any) => typeof cell === 'string' && cell.includes('* = Campo obligatorio'))) {
-      continue;
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
+
+    if (jsonData.length <= 1) {
+      throw new BadRequestException('El archivo Excel está vacío o no contiene filas de datos');
     }
 
-    const rowNumber = i + 2;
-    const assetData: any = {
-      code: '',
-      name: '',
-      description: '',
-      lastLocation: '',
-      gpsDeviceImei: '',
-      dynamicAttributes: {},
-    };
+    const headers = jsonData[0];
+    const colMap: Record<number, string> = {};
 
-    row.forEach((cellValue: any, colIdx: number) => {
-      const key = colMap[colIdx];
-      if (!key) return;
+    headers.forEach((header: string, index: number) => {
+      if (!header) return;
 
-      const cleanValue = cellValue !== null && cellValue !== undefined ? String(cellValue).trim() : '';
-      if (['code', 'name', 'description', 'lastLocation', 'gpsDeviceImei'].includes(key)) {
-        assetData[key] = cleanValue;
+      // 1. Quitar las opciones entre paréntesis del final (ej: " (Opcion1, Opcion2)")
+      let cleanHeader = header.replace(/\s*\([^)]*\)$/, '');
+      // 2. Quitar el asterisco de campo obligatorio y espacios extra
+      cleanHeader = cleanHeader.replace(/\s*\*\s*$/, '').trim();
+
+      // Pasar a minúsculas y quitar tildes
+      const cleanLower = cleanHeader.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      // CORRECCIÓN: Validar si incluye o coincide con el nombre de la plantilla base
+      if (cleanLower === 'codigo' || cleanLower === 'code' || cleanLower.includes('codigo del activo')) {
+        colMap[index] = 'code';
+      } else if (cleanLower === 'nombre' || cleanLower === 'name' || cleanLower.includes('nombre del activo')) {
+        colMap[index] = 'name';
+      } else if (cleanLower === 'descripcion' || cleanLower === 'description') {
+        colMap[index] = 'description';
       } else {
-        assetData.dynamicAttributes[key] = cleanValue;
-      }
-    });
-
-    if (!assetData.code) {
-      errors.push({ row: rowNumber, error: 'El Código del activo es obligatorio' });
-      continue;
-    }
-    if (!assetData.name) {
-      errors.push({ row: rowNumber, error: 'El Nombre del activo es obligatorio' });
-      continue;
-    }
-
-    if (seenCodes.has(assetData.code)) {
-      errors.push({ row: rowNumber, error: `El Código "${assetData.code}" está duplicado en el mismo Excel` });
-      continue;
-    }
-    box: seenCodes.add(assetData.code);
-
-    const existingDb = await this.prisma.asset.findFirst({
-      where: { code: assetData.code },
-    });
-    if (existingDb) {
-      errors.push({ row: rowNumber, error: `El Código "${assetData.code}" ya existe en el sistema` });
-      continue;
-    }
-    const existingName = await this.prisma.asset.findFirst({
-      where: { name: assetData.name },
-    });
-    if (existingName) {
-      errors.push({ row: rowNumber, error: `El Nombre "${assetData.name}" ya existe en el sistema` });
-      continue;
-    }
-
-    let gpsDeviceId = null;
-    if (assetData.gpsDeviceImei) {
-      const gpsDev = await this.prisma.gpsDevice.findUnique({
-        where: { imei: assetData.gpsDeviceImei },
-      });
-      if (!gpsDev) {
-        errors.push({ row: rowNumber, error: `El dispositivo GPS con IMEI "${assetData.gpsDeviceImei}" no existe` });
-        continue;
-      }
-      gpsDeviceId = gpsDev.id;
-    }
-
-    parsedAssets.push({
-      ...assetData,
-      gpsDeviceId,
-      rowNumber,
-    });
-  }
-
-  if (errors.length > 0) {
-    throw new BadRequestException({ success: false, errors });
-  }
-
-  const createdAssets = [];
-  const pendingFileRequirements: any[] = [];
-
-  await this.prisma.$transaction(async (tx) => {
-    for (const parsedAsset of parsedAssets) {
-      const attributesData = [];
-
-      for (const fieldDef of assetType.assetFieldDefinitions) {
-        if (fieldDef.fieldType === 'FILE') {
-          const expectedFileName = `${fieldDef.label}`;
-          attributesData.push({
-            idField: fieldDef.id,
-            label: fieldDef.label,
-            value: '',
-            pendingFileName: expectedFileName,
-          });
-          pendingFileRequirements.push({
-            assetCode: parsedAsset.code,
-            assetName: parsedAsset.name,
-            fieldLabel: fieldDef.label,
-            fieldId: fieldDef.id,
-            fileName: expectedFileName,
-          });
-        } else {
-          const userVal = parsedAsset.dynamicAttributes[fieldDef.id] || '';
-          attributesData.push({
-            idField: fieldDef.id,
-            label: fieldDef.label,
-            value: userVal,
-          });
+        const matchedField = assetType.assetFieldDefinitions.find(
+          (f) => f.fieldType !== 'FILE' && f.label.toLowerCase().trim() === cleanHeader.toLowerCase()
+        );
+        if (matchedField) {
+          colMap[index] = matchedField.id;
         }
       }
+    });
 
-      const newAsset = await tx.asset.create({
-        data: {
-          assetTypeId,
-          code: parsedAsset.code,
-          name: parsedAsset.name,
-          description: parsedAsset.description || null,
-          status: StatusAsset.ACTIVE,
-          lastLocation: parsedAsset.lastLocation || null,
-          attributesData: attributesData as Prisma.InputJsonValue,
-          gpsDeviceId: parsedAsset.gpsDeviceId,
-        },
-      });
-      createdAssets.push(newAsset);
+    const requiredKeys = ['code', 'name'];
+    const mappedValues = Object.values(colMap);
+    for (const reqKey of requiredKeys) {
+      if (!mappedValues.includes(reqKey)) {
+        throw new BadRequestException(`El archivo Excel no contiene la columna requerida: ${reqKey === 'code' ? 'Código' : 'Nombre'}`);
+      }
     }
-  });
 
-  if (pendingFileRequirements.length > 0) {
-    const instrHeaders = [
-      'CÓDIGO DEL ACTIVO',
-      'NOMBRE DEL ACTIVO',
-      'CAMPO (ARCHIVO)',
-      'NOMBRE DEL ARCHIVO REQUERIDO',
-      'NOMBRE DE SUBCARPETA',
-      'RUTA REQUERIDA EN DOCUMENTOS',
-    ];
+    const rows = jsonData.slice(1);
+    const errors: { row: number; error: string }[] = [];
+    const parsedAssets: any[] = [];
+    const seenCodes = new Set<string>();
 
-    const instrRows = pendingFileRequirements.map((req) => [
-      req.assetCode,
-      req.assetName,
-      req.fieldLabel,
-      `${req.fileName}.[ext]`,
-      `COD-${req.assetCode}`,
-      `archivos_activos/COD-${req.assetCode}/${req.fileName}.[ext]`,
-    ]);
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.every((cell: any) => cell === null || cell === undefined || String(cell).trim() === '')) {
+        continue;
+      }
 
-    const instrWb = XLSX.utils.book_new();
-    const instrWs = XLSX.utils.aoa_to_sheet([instrHeaders, ...instrRows]);
+      // Se mantiene por retrocompatibilidad si suben una plantilla vieja con la leyenda
+      if (row.some((cell: any) => typeof cell === 'string' && cell.includes('* = Campo obligatorio'))) {
+        continue;
+      }
 
-    const instrWidths = instrHeaders.map(() => ({ wch: 30 }));
-    instrWs['!cols'] = instrWidths;
+      const rowNumber = i + 2;
+      const assetData: any = {
+        code: '',
+        name: '',
+        description: '',
+        lastLocation: '',
+        gpsDeviceImei: '',
+        dynamicAttributes: {},
+      };
 
-    XLSX.utils.book_append_sheet(instrWb, instrWs, 'Instrucciones_Archivos');
-    const instrBuffer = XLSX.write(instrWb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+      row.forEach((cellValue: any, colIdx: number) => {
+        const key = colMap[colIdx];
+        if (!key) return;
+
+        const cleanValue = cellValue !== null && cellValue !== undefined ? String(cellValue).trim() : '';
+        if (['code', 'name', 'description', 'lastLocation', 'gpsDeviceImei'].includes(key)) {
+          assetData[key] = cleanValue;
+        } else {
+          assetData.dynamicAttributes[key] = cleanValue;
+        }
+      });
+
+      if (!assetData.code) {
+        errors.push({ row: rowNumber, error: 'El Código del activo es obligatorio' });
+        continue;
+      }
+      if (!assetData.name) {
+        errors.push({ row: rowNumber, error: 'El Nombre del activo es obligatorio' });
+        continue;
+      }
+
+      if (seenCodes.has(assetData.code)) {
+        errors.push({ row: rowNumber, error: `El Código "${assetData.code}" está duplicado en el mismo Excel` });
+        continue;
+      }
+      box: seenCodes.add(assetData.code);
+
+      const existingDb = await this.prisma.asset.findFirst({
+        where: { code: assetData.code },
+      });
+      if (existingDb) {
+        errors.push({ row: rowNumber, error: `El Código "${assetData.code}" ya existe en el sistema` });
+        continue;
+      }
+      const existingName = await this.prisma.asset.findFirst({
+        where: { name: assetData.name },
+      });
+      if (existingName) {
+        errors.push({ row: rowNumber, error: `El Nombre "${assetData.name}" ya existe en el sistema` });
+        continue;
+      }
+
+      let gpsDeviceId = null;
+      if (assetData.gpsDeviceImei) {
+        const gpsDev = await this.prisma.gpsDevice.findUnique({
+          where: { imei: assetData.gpsDeviceImei },
+        });
+        if (!gpsDev) {
+          errors.push({ row: rowNumber, error: `El dispositivo GPS con IMEI "${assetData.gpsDeviceImei}" no existe` });
+          continue;
+        }
+        gpsDeviceId = gpsDev.id;
+      }
+
+      parsedAssets.push({
+        ...assetData,
+        gpsDeviceId,
+        rowNumber,
+      });
+    }
+
+    if (errors.length > 0) {
+      throw new BadRequestException({ success: false, errors });
+    }
+
+    const createdAssets = [];
+    const pendingFileRequirements: any[] = [];
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const parsedAsset of parsedAssets) {
+        const attributesData = [];
+
+        for (const fieldDef of assetType.assetFieldDefinitions) {
+          if (fieldDef.fieldType === 'FILE') {
+            const expectedFileName = `${fieldDef.label}`;
+            attributesData.push({
+              idField: fieldDef.id,
+              label: fieldDef.label,
+              value: '',
+              pendingFileName: expectedFileName,
+            });
+            pendingFileRequirements.push({
+              assetCode: parsedAsset.code,
+              assetName: parsedAsset.name,
+              fieldLabel: fieldDef.label,
+              fieldId: fieldDef.id,
+              fileName: expectedFileName,
+            });
+          } else {
+            const userVal = parsedAsset.dynamicAttributes[fieldDef.id] || '';
+            attributesData.push({
+              idField: fieldDef.id,
+              label: fieldDef.label,
+              value: userVal,
+            });
+          }
+        }
+
+        const newAsset = await tx.asset.create({
+          data: {
+            assetTypeId,
+            code: parsedAsset.code,
+            name: parsedAsset.name,
+            description: parsedAsset.description || null,
+            status: StatusAsset.ACTIVE,
+            lastLocation: parsedAsset.lastLocation || null,
+            attributesData: attributesData as Prisma.InputJsonValue,
+            gpsDeviceId: parsedAsset.gpsDeviceId,
+          },
+        });
+        createdAssets.push(newAsset);
+      }
+    });
+
+    if (pendingFileRequirements.length > 0) {
+      const instrHeaders = [
+        'CÓDIGO DEL ACTIVO',
+        'NOMBRE DEL ACTIVO',
+        'CAMPO (ARCHIVO)',
+        'NOMBRE DEL ARCHIVO REQUERIDO',
+        'NOMBRE DE SUBCARPETA',
+        'RUTA REQUERIDA EN DOCUMENTOS',
+      ];
+
+      const instrRows = pendingFileRequirements.map((req) => [
+        req.assetCode,
+        req.assetName,
+        req.fieldLabel,
+        `${req.fileName}.[ext]`,
+        `COD-${req.assetCode}`,
+        `archivos_activos/COD-${req.assetCode}/${req.fileName}.[ext]`,
+      ]);
+
+      const instrWb = XLSX.utils.book_new();
+      const instrWs = XLSX.utils.aoa_to_sheet([instrHeaders, ...instrRows]);
+
+      const instrWidths = instrHeaders.map(() => ({ wch: 30 }));
+      instrWs['!cols'] = instrWidths;
+
+      XLSX.utils.book_append_sheet(instrWb, instrWs, 'Instrucciones_Archivos');
+      const instrBuffer = XLSX.write(instrWb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+
+      return {
+        success: true,
+        data: instrBuffer,
+        message: `Se crearon ${createdAssets.length} activos. Se requieren archivos.`,
+        pendingFiles: true,
+      };
+    }
 
     return {
       success: true,
-      data: instrBuffer,
-      message: `Se crearon ${createdAssets.length} activos. Se requieren archivos.`,
-      pendingFiles: true,
+      message: `Se cargaron ${createdAssets.length} activos exitosamente`,
+      pendingFiles: false,
     };
   }
-
-  return {
-    success: true,
-    message: `Se cargaron ${createdAssets.length} activos exitosamente`,
-    pendingFiles: false,
-  };
-}
   async bulkUploadFiles(): Promise<{ success: boolean; uploadedCount: number; uploadedFiles: any[]; unmatchedFiles: string[] }> {
     const uploadedFiles = [];
     const unmatchedFiles = [];

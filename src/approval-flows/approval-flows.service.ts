@@ -140,10 +140,7 @@ export class ApprovalFlowsService {
       console.log('METHOD:', err.config?.method);
 
       this.logger.error(`createSolicitud error: ${err.message}`);
-      throw new HttpException(
-        'Error al crear solicitud',
-        HttpStatus.BAD_GATEWAY,
-      );
+      return [];
     }
   }
 
