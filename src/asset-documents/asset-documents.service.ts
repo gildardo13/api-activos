@@ -37,9 +37,12 @@ export class AssetDocumentsService {
   }
 
   private servicesJibbyApi(): AxiosInstance {
+    const urlApiJibby = process.env.CONTROL_ACTIVOS_ENV === 'prod' ? process.env.NEXT_PUBLIC_IA_SERVICES_JIBBY_PROD : 
+    (process.env.CONTROL_ACTIVOS_ENV === 'test' ? process.env.NEXT_PUBLIC_IA_SERVICES_JIBBY_TEST : process.env.NEXT_PUBLIC_IA_SERVICES_JIBBY_DEV);
+    
     return axios.create({
-      baseURL: (process.env.NEXT_PUBLIC_IA_SERVICES_JIBBY || 'http://localhost:2110').replace(/\/$/, ''),
-      timeout: parseInt(process.env.EXTERNAL_API_TIMEOUT || '10000', 10),
+      baseURL: urlApiJibby.replace(/\/$/, ''),
+      timeout: parseInt(urlApiJibby  || '10000', 10),
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
