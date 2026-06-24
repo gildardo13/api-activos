@@ -29,6 +29,14 @@ export class AssetDocumentsController {
     return this.assetDocumentsService.analyze(body.documentId, body.query);
   }
 
+  @Post('/analyze-temp')
+  @HttpCode(HttpStatus.OK)
+  analyzeTemp(
+    @Body() body: { documentId: string; query: string },
+  ) {
+    return this.assetDocumentsService.analyzeTemp(body.documentId, body.query);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(

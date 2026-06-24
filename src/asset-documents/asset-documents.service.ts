@@ -446,6 +446,8 @@ export class AssetDocumentsService {
         const uploadRes = await api.post<any>('/documents/upload', formData, {
           headers: {
             ...headers,
+           
+            
             // Es vital forzar el Content-Type multipart para que el servidor entienda el archivo
             'Content-Type': 'multipart/form-data'
           }
@@ -497,4 +499,81 @@ export class AssetDocumentsService {
       );
     }
   }
+
+  async analyzeTemp(documentId: string, query: string) {
+    const document = await this.prisma.assetDocument.findUnique({
+      where: { id: documentId },
+      include: {
+        asset: true,
+        assetFieldDefinition: true,
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException(`Document with ID ${documentId} not found`);
+    }
+
+    const headers = this.buildHeaders({ systemkey: documentId });
+    const api = this.servicesJibbyApi();
+
+    let aiDocId: string | null = null;
+    try {
+      const listRes = await api.get<any[]>('/documents', { headers });
+      const existing = listRes.data.find((d: any) => d.storageUrl === document.fileUrl);
+      if (existing) {
+        aiDocId = existing.id;
+      }
+    } catch (err) {
+      this.logger.error(`Error listing documents from AI service: ${err.message}`);
+    }
+
+    // Si ya existe en la base de datos de IA, consumir el flujo RAG estándar (sin persistir nuevas copias)
+    if (aiDocId) {
+      this.logger.log(`Document already exists in AI service (ID: ${aiDocId}). Using standard RAG query...`);
+      try {
+        const ragRes = await api.post<any>('/query/rag', { query, limit: 5 }, { headers });
+        return ragRes.data;
+      } catch (ragErr: any) {
+        const externalError = ragErr.response?.data?.message || ragErr.response?.data || ragErr.message;
+        this.logger.error(`RAG query failed:`, externalError);
+        throw new BadRequestException(
+          `Error al consultar el servicio de IA: ${typeof externalError === 'string' ? externalError : JSON.stringify(externalError)}`
+        );
+      }
+    }
+
+    // Si NO existe en la base de datos de IA, realizar todo el procesamiento de manera temporal en el servicio de IA
+    this.logger.log(`Document not found in AI service. Querying temporal RAG on AI service...`);
+    try {
+      this.logger.log(
+        `Descargando documento para RAG temporal desde: ${document.fileUrl}`
+      );
+      const fileResponse = await axios.get(document.fileUrl, { responseType: 'arraybuffer' });
+      const fileBuffer = Buffer.from(fileResponse.data);
+
+      const formData = new FormData();
+      formData.append(
+        'file',
+        new Blob([fileBuffer], { type: fileResponse.headers['content-type'] }),
+        document.fileName,
+      );
+      formData.append('query', query);
+
+      const tempRagRes = await api.post<any>('/query/rag-temp', formData, {
+        headers: {
+          ...headers,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return tempRagRes.data;
+    } catch (err: any) {
+      const externalError = err.response?.data?.message || err.response?.data || err.message;
+      this.logger.error(`Failed to execute temporal RAG query on AI service:`, externalError);
+      throw new BadRequestException(
+        `No se pudo procesar la consulta RAG temporal en el servicio de IA: ${JSON.stringify(externalError)}`
+      );
+    }
+  }
+
 }
