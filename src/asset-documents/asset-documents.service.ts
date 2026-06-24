@@ -56,9 +56,9 @@ export class AssetDocumentsService {
   private buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
     const headers: Record<string, string> = {};
     if (this._token) headers['Cookie'] = `app_session=${this._token}`;
-    headers['empresa'] = this._empresa + "000222";
-    headers['x-tenant-id'] = this._empresa + "000222";
-    headers['tenantId'] = this._empresa + "000222";
+    headers['empresa'] = this._empresa;
+    headers['x-tenant-id'] = this._empresa;
+    headers['tenantId'] = this._empresa;
     return { ...headers, ...extra };
   }
   async create(dto: CreateAssetDocumentDto) {
