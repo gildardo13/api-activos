@@ -1,98 +1,109 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+Este es el backend de la plataforma **Control Activos**, desarrollado con **NestJS**, **Prisma ORM** y **PostgreSQL**. Este servicio expone una API REST para la gestión de activos, asignaciones, flujos de aprobación y geocercas, e incluye un servidor TCP nativo para recibir, decodificar y procesar la telemetría en tiempo real de dispositivos físicos GPS Teltonika (FMC920).
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+---
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 📋 Requisitos Previos
 
-## Description
+Asegúrate de tener instalados los siguientes componentes en tu entorno local:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+* **Node.js** (Versión 18 o superior recomendada)
+* **pnpm** (Gestor de paquetes recomendado para este proyecto)
+* **PostgreSQL** (Como base de datos relacional)
 
-## Project setup
+---
+
+## 🛠️ Instalación y Configuración
+
+Sigue estos pasos para levantar el entorno de desarrollo:
+
+### 1. Clonar el proyecto e instalar dependencias
+Instala todas las dependencias del proyecto usando `pnpm`:
 
 ```bash
-$ pnpm install
+pnpm install
 ```
 
-## Compile and run the project
+### 3. Generar el cliente de Prisma ORM
+Antes de ejecutar el proyecto, debes generar el cliente de Prisma para que coincida con tu esquema de base de datos actual:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm prisma generate
 ```
 
-## Run tests
+---
+
+
+### Ejecutar en Desarrollo
+Para levantar el servidor en modo desarrollo con recarga automática (hot reload) ante cambios de código:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm run start:dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Compilar para Producción (Build)
+Para compilar el código TypeScript a JavaScript de producción (los archivos resultantes se guardarán en la carpeta `/dist`):
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm run build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Ejecutar en Producción
+Una vez compilado el proyecto, puedes iniciar la aplicación optimizada para producción:
 
-## Resources
+```bash
+pnpm run start:prod
+```
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## Servidor GPS (TCP)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+El servicio inicia automáticamente un servidor TCP en segundo plano (configurado en `tcp-server.service.ts`) al levantar la aplicación.
+* **Puerto predeterminado:** `2102` (configurable mediante `GPS_TCP_PORT` en el `.env`).
+* **Protocolos soportados:** Tramas binarias Teltonika (Codec 8 y Codec 8 Extended).
+* **Seguridad:** El servidor valida el IMEI del dispositivo contra la base de datos durante el saludo (*handshake*). Si el IMEI no está registrado, corta la conexión TCP inmediatamente para ahorrar recursos y evitar accesos no autorizados.
 
-## Support
+---
+## Variables de Entorno (.env)
+### 1. Conexiones a Bases de Datos (PostgreSQL)
+* `DATABASE_URL`: Cadena de conexión principal de PostgreSQL utilizada por Prisma para almacenar la información de los activos y telemetría.
+* `DATABASE_URL_AUTH`: Cadena de conexión de PostgreSQL para el módulo común de autenticación y accesos.
+* `PORT_DB`: Puerto de escucha de la base de datos (generalmente `5432`).
+* `PASS_DB_AWS`: Contraseña de acceso a la base de datos PostgreSQL alojada en AWS RDS, utilizada para construir dinámicamente las cadenas de conexión multitenant para cada empresa en producción.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### 2. Autenticación y Seguridad
+* `JWT_SECRET`: Llave secreta utilizada para firmar y verificar tokens de autenticación de usuarios.
+* `CLIENT_ID` / `CLIENT_SECRET`: Credenciales de cliente (ID y Secret) utilizadas para la autenticación y autorización en el consumo de APIs y servicios internos de la plataforma.
+* `TURNSTILE_SECRET_KEY`: Llave secreta de Cloudflare Turnstile utilizada para la validación y verificación de CAPTCHAs en el backend.
 
-## Stay in touch
+### 3. Servidor de Correos (SMTP)
+* `MAIL_HOST`: Servidor SMTP de correo (ej. `smtp.gmail.com`).
+* `MAIL_PORT`: Puerto SMTP (normalmente `587` para cifrado TLS).
+* `MAIL_USER`: Cuenta de correo emisora de alertas e invitaciones.
+* `MAIL_PASS`: Contraseña de aplicación o contraseña del correo emisor.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### 4. Configuración del Servidor y Entorno
+* `CONTROL_ACTIVOS_ENV` / `CONTROL_ACTIVOS_ENV`: Indica el entorno de ejecución (`dev` / `test` / `prod`).
 
-## License
+### 5. Servicios de Almacenamiento (Cloudinary)
+* `CLOUDINARY_CLOUD_NAME`: Nombre del espacio en la nube en Cloudinary.
+* `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`: Credenciales de acceso de la API de Cloudinary para subida de fotos de activos y documentos.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### 6. Integración con otros Microservicios
+* `AUTH_BACK` / `CONTROL_ACTIVOS_AUTH_BACK_...`: Dirección de la API del backend de Autenticación.
+* `RH_BACK_...`: Dirección de la API del backend de Recursos Humanos.
+* `ROOT_BACK_...`: Dirección de la API del backend Root.
+* `WORKFLOW_BACK_...`: Dirección de la API del sistema de Flujos de Trabajo (workflows).
+* `NEXT_PUBLIC_IA_SERVICES_JIBBY_...`: Dirección de la API del servicio de Inteligencia Artificial para análisis de documentos de activos.
+
+### 7. Keys y Acciones de Módulos (Permisos y API)
+* `MODULE_ID`: Identificador único UUID del módulo de control de activos.
+* `MODULE_ACTION_ASSIGNMENT_ID`: Identificador de la acción de asignación de activos.
+* `MODULE_ACTION_UPDATE_ID`: Identificador de la acción de actualización del activo.
+* `MODULE_ACTION_CHANGES_ID`: Identificador de la acción para historial de cambios de activos.
+* `MODULE_ACTION_RETURN_ID`: Identificador de la acción de devolución de activos (`db76d8ef-7392-4d1f-a3bc-8dda8a640df9`).
+* `EXTERNAL_API_TIMEOUT`: Tiempo límite de espera (timeout) en milisegundos para solicitudes a APIs externas (generalmente `10000` ms).
+* `DEFAULT_ORGANIZATION_ID`: Identificador UUID de la organización por defecto en el sistema.
+
+
+### 8. Configuracion del puerto del modelo TMC920
+* `GPS_TCP_PORT`: Puerto en el que escucha el servidor TCP de GPS (por defecto `2102`).
