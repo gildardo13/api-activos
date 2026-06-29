@@ -232,7 +232,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                 return;
             }
 
-            // Validar saltos imposibles de distancia (ej. Monterrey a Campeche) en poco tiempo (Feasibility check)
+            //VALIDADOR IMPOSIBLE DE SALTO DE KM
             const lat1 = parseFloat(lastTelemetry.latitud);
             const lon1 = parseFloat(lastTelemetry.longitud);
             const lat2 = record.latitude;
@@ -250,6 +250,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     return;
                 }
             }
+             //VALIDADOR IMPOSIBLE DE SALTO DE KM
         }
 
         // Ejecutar creación y actualización en transacción
