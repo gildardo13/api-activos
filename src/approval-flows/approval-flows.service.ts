@@ -220,9 +220,13 @@ export class ApprovalFlowsService {
   async updateStatus(request: any) {
     try {
 
-      if (request.moduleAction.name === 'active_assign') {
+       if (request.moduleAction.key === 'ASSIGNMENT') {
         this.assetAssignmentsService.approvalStatus(request.clientReferenceId, request.status.toUpperCase())
       }
+
+      /*if (request.moduleAction.name === 'active_assign') {
+        this.assetAssignmentsService.approvalStatus(request.clientReferenceId, request.status.toUpperCase())
+      }*/
     } catch (err: any) {
       this.logger.error(`updateStatus error: ${err.message}`);
       throw new HttpException(
@@ -240,7 +244,7 @@ export class ApprovalFlowsService {
     );
     const approvedComment = approvedStep?.comments ?? null;
     if (data) {
-      if (data.moduleAction.key === "update") {
+      if (data.moduleAction.key === "UPDATE") {
         const dto = { ...data.metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
         await this.assetsService.update(data.clientReferenceId, dto,)
         await this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment)
@@ -262,10 +266,10 @@ export class ApprovalFlowsService {
 
         }
       }
-      else if (data.moduleAction.key === "assignment") {
+      else if (data.moduleAction.key === "ASSIGNMENT") {
         await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
       }
-      if (data.moduleAction.key === "changes") {
+      if (data.moduleAction.key === "CHANGES") {
         await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
         await this.assetDocumentsService.update(data.clientReferenceId, data.metadata.dtoDocument);
 
@@ -279,10 +283,10 @@ export class ApprovalFlowsService {
     );
     const rejectionComment = rejectedStep?.comments ?? null;
     if (data) {
-      if (data.moduleAction.key === "update") {
+      if (data.moduleAction.key === "UPDATE") {
         this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
       }
-      else if (data.moduleAction.key === "assignment") {
+      else if (data.moduleAction.key === "ASSIGNMENT") {
         this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment, true)
         const d = await this.prisma.assetTelemetryLog.deleteMany({
           where: {
@@ -302,7 +306,7 @@ export class ApprovalFlowsService {
           },
         });
       }
-      else if (data.moduleAction.key === "changes") {
+      else if (data.moduleAction.key === "CHANGES") {
         await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
       }
 

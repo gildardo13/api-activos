@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -110,6 +110,28 @@ export class ProjectsService {
   }
 
   async remove(id: string) {
+    const existingProject = await this.prisma.project.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException('El proyecto no existe.');
+    }
+
+    const assignmentCount = await this.prisma.assetAssignment.count({
+      where: {
+        projectId: id,
+      },
+    });
+
+    if (assignmentCount > 0) {
+      throw new BadRequestException(
+        'No se puede eliminar el proyecto porque está asociado a un activo.',
+      );
+    }
+
     const project = await this.prisma.project.delete({
       where: {
         id,

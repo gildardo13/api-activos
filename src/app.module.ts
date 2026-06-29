@@ -57,10 +57,10 @@ export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(SetDatabaseMiddleware)
-      .exclude({
+      /*.exclude({
         path: 'gps/telemetry',
         method: RequestMethod.POST,
-      })
+      })*/
       .forRoutes('*');
   }
 }
