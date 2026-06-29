@@ -100,10 +100,10 @@ El servicio inicia automáticamente un servidor TCP en segundo plano (configurad
 * `MODULE_ACTION_ASSIGNMENT_ID`: Identificador de la acción de asignación de activos.
 * `MODULE_ACTION_UPDATE_ID`: Identificador de la acción de actualización del activo.
 * `MODULE_ACTION_CHANGES_ID`: Identificador de la acción para historial de cambios de activos.
-* `MODULE_ACTION_RETURN_ID`: Identificador de la acción de devolución de activos (`db76d8ef-7392-4d1f-a3bc-8dda8a640df9`).
+* `MODULE_ACTION_RETURN_ID`: Identificador de la acción de devolución de activos.
 * `EXTERNAL_API_TIMEOUT`: Tiempo límite de espera (timeout) en milisegundos para solicitudes a APIs externas (generalmente `10000` ms).
 * `DEFAULT_ORGANIZATION_ID`: Identificador UUID de la organización por defecto en el sistema.
 
 
 ### 8. Configuracion del puerto del modelo TMC920
-* `GPS_TCP_PORT`: Puerto en el que escucha el servidor TCP de GPS (por defecto `2102`).
+* `GPS_TCP_PORT`: Puerto en el que escucha el servidor TCP de GPS.
