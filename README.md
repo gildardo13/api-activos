@@ -67,7 +67,7 @@ El servicio inicia automáticamente un servidor TCP en segundo plano (configurad
 ### 1. Conexiones a Bases de Datos (PostgreSQL)
 * `DATABASE_URL`: Cadena de conexión principal de PostgreSQL utilizada por Prisma para almacenar la información de los activos y telemetría.
 * `DATABASE_URL_AUTH`: Cadena de conexión de PostgreSQL para el módulo común de autenticación y accesos.
-* `PORT_DB`: Puerto de escucha de la base de datos (generalmente `5432`).
+* `PORT_DB`: Puerto de escucha de la base de datos.
 * `PASS_DB_AWS`: Contraseña de acceso a la base de datos PostgreSQL alojada en AWS RDS, utilizada para construir dinámicamente las cadenas de conexión multitenant para cada empresa en producción.
 
 ### 2. Autenticación y Seguridad
