@@ -27,7 +27,7 @@ export class GpsDeviceService {
         providerCompany: createGpsDeviceDto.providerCompany,
       }
     });
-  } D
+  }
 
   async findAll() {
     return this.prisma.gpsDevice.findMany({
@@ -149,10 +149,33 @@ export class GpsDeviceService {
   }
 
   async remove(id: string) {
+    const existingDevice = await this.prisma.gpsDevice.findUnique({
+      where: {
+        id: id,
+      },
+    });
+
+    if (!existingDevice) {
+      throw new HttpException('El dispositivo GPS no existe.', HttpStatus.NOT_FOUND);
+    }
+
+    const assetCount = await this.prisma.asset.count({
+      where: {
+        gpsDeviceId: id,
+      },
+    });
+
+    if (assetCount > 0) {
+      throw new HttpException(
+        'No se puede eliminar el dispositivo GPS porque está asociado a un activo.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     return this.prisma.gpsDevice.delete({
       where: {
-        id: id
-      }
-    })
+        id: id,
+      },
+    });
   }
 }

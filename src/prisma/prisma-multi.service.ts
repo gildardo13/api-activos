@@ -21,7 +21,8 @@ export class PrismaMultiService extends BasePrismaMultiService {
     if (process.env.CONTROL_ACTIVOS_ENV === 'dev') {
       return databaseDev;
     }
+    return databaseDev;
 
-    return `postgresql://neondb_owner:${pass_db_neon}@ep-gentle-thunder-aalvtxgi-pooler.westus3.azure.neon.tech/${empresa}_activos`;
+    //return `postgresql://neondb_owner:${pass_db_neon}@ep-gentle-thunder-aalvtxgi-pooler.westus3.azure.neon.tech/${empresa}_activos`;
   }
 }
