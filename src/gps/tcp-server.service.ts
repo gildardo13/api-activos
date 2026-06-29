@@ -58,9 +58,26 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                         }
                         
                         const imei = bufferAccumulator.toString('ascii', 2, 2 + imeiLen);
+                        
+                        try {
+                            const deviceGps = await this.prisma.gpsDevice.findUnique({
+                                where: { imei },
+                            });
+                            if (!deviceGps) {
+                                this.logger.warn(`[TCP GPS] Dispositivo no autorizado con IMEI: ${imei} desde ${remoteAddress}. Cerrando conexión.`);
+                                this.logToFile(`[TCP GPS] Dispositivo no autorizado con IMEI: ${imei} desde ${remoteAddress}. Cerrando conexión.`);
+                                socket.destroy();
+                                break;
+                            }
+                        } catch (err) {
+                            this.logger.error(`[TCP GPS] Error al verificar el IMEI ${imei} desde ${remoteAddress}: ${err.message}`);
+                            socket.destroy();
+                            break;
+                        }
+
                         deviceImei = imei;
-                        this.logger.log(`[TCP GPS] IMEI recibido de ${remoteAddress}: ${deviceImei}`);
-                        this.logToFile(`[TCP GPS] IMEI recibido de ${remoteAddress}: ${deviceImei}`);
+                        this.logger.log(`[TCP GPS] IMEI verificado y recibido de ${remoteAddress}: ${deviceImei}`);
+                        this.logToFile(`[TCP GPS] IMEI verificado y recibido de ${remoteAddress}: ${deviceImei}`);
 
                         // Responder aceptación de IMEI (1 byte con valor 0x01)
                         socket.write(Buffer.from([0x01]));
