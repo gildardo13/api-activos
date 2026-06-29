@@ -224,11 +224,32 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             },
         });
 
-        // Validar que las coordenadas no sean idénticas a las últimas registradas
-        if (lastTelemetry && lastTelemetry.latitud === String(record.latitude) && lastTelemetry.longitud === String(record.longitude)) {
-            this.logger.warn(`[TCP GPS] Coordenadas idénticas (${record.latitude}, ${record.longitude}) para el activo ${asset.id} (IMEI: ${imei}). Telemetría omitida.`);
-            this.logToFile(`[TCP GPS] WARN [${imei}]: Coordenadas idénticas (${record.latitude}, ${record.longitude}) para el activo ${asset.id}. Telemetría omitida.`);
-            return;
+        if (lastTelemetry) {
+            // Validar que las coordenadas no sean idénticas a las últimas registradas
+            if (lastTelemetry.latitud === String(record.latitude) && lastTelemetry.longitud === String(record.longitude)) {
+                this.logger.warn(`[TCP GPS] Coordenadas idénticas (${record.latitude}, ${record.longitude}) para el activo ${asset.id} (IMEI: ${imei}). Telemetría omitida.`);
+                this.logToFile(`[TCP GPS] WARN [${imei}]: Coordenadas idénticas (${record.latitude}, ${record.longitude}) para el activo ${asset.id}. Telemetría omitida.`);
+                return;
+            }
+
+            // Validar saltos imposibles de distancia (ej. Monterrey a Campeche) en poco tiempo (Feasibility check)
+            const lat1 = parseFloat(lastTelemetry.latitud);
+            const lon1 = parseFloat(lastTelemetry.longitud);
+            const lat2 = record.latitude;
+            const lon2 = record.longitude;
+
+            const distanceKm = this.getDistanceKm(lat1, lon1, lat2, lon2);
+            const timeDiffSeconds = Math.abs((record.timestamp.getTime() - lastTelemetry.recordedAt.getTime()) / 1000);
+
+            if (timeDiffSeconds > 0) {
+                const speedKmh = (distanceKm / (timeDiffSeconds / 3600));
+                // Si la velocidad implícita es mayor a 250 km/h y el salto es de más de 1.5 km, es un salto irreal de GPS
+                if (speedKmh > 250 && distanceKm > 1.5) {
+                    this.logger.warn(`[TCP GPS] Salto de coordenadas imposible descartado para el activo ${asset.name} (IMEI: ${imei}). Distancia: ${distanceKm.toFixed(2)} km en ${timeDiffSeconds}s (Velocidad implícita: ${speedKmh.toFixed(2)} km/h).`);
+                    this.logToFile(`[TCP GPS] WARN [${imei}]: Salto imposible descartado. Distancia: ${distanceKm.toFixed(2)} km en ${timeDiffSeconds}s.`);
+                    return;
+                }
+            }
         }
 
         // Ejecutar creación y actualización en transacción
@@ -337,5 +358,21 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
 
         this.logger.log(`El activo con ID ${asset.id} (IMEI: ${body.imei}) ya fue registrado!!!.`);
         return telemetry;
+    }
+
+    private getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+        const R = 6371; // Radio de la Tierra en kilómetros
+        const dLat = this.deg2rad(lat2 - lat1);
+        const dLon = this.deg2rad(lon2 - lon1);
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    private deg2rad(deg: number): number {
+        return deg * (Math.PI / 180);
     }
 }
