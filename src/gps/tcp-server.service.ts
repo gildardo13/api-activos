@@ -121,7 +121,6 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                         bufferAccumulator = bufferAccumulator.slice(expectedLength);
 
                         try {
-                            console.log(packet)
                             const parsed = parseAvlData(packet);
                             this.logger.log(`[TCP GPS] Objeto parsed completo: ${JSON.stringify(parsed, null, 2)}`);
                             if (parsed) {
