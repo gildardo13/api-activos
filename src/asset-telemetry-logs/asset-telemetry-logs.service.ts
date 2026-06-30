@@ -38,11 +38,7 @@ export class AssetTelemetryLogsService {
       const isLocationIdentical = lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud;
       const hasStateChanged = 
         lasTelemetry.speed !== dto.speed ||
-        lasTelemetry.ignition !== dto.ignition ||
-        lasTelemetry.din1 !== dto.din1 ||
-        lasTelemetry.din2 !== dto.din2 ||
-        lasTelemetry.dout1 !== dto.dout1 ||
-        lasTelemetry.ain1 !== dto.ain1;
+        lasTelemetry.ignition !== dto.ignition
 
       if (isLocationIdentical && !hasStateChanged) {
         throw new BadRequestException('Las coordenadas y estados son idénticas a la última telemetría registrada.');
