@@ -121,6 +121,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                         bufferAccumulator = bufferAccumulator.slice(expectedLength);
 
                         try {
+                            console.log(packet)
                             const parsed = parseAvlData(packet);
                             this.logger.log(`[TCP GPS] Objeto parsed completo: ${JSON.stringify(parsed, null, 2)}`);
                             if (parsed) {
@@ -239,10 +240,20 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
         });
 
         if (lastTelemetry) {
-            // Validar que las coordenadas no sean idénticas a las últimas registradas
-            if (lastTelemetry.latitud === String(record.latitude) && lastTelemetry.longitud === String(record.longitude)) {
-                this.logger.warn(`[TCP GPS] Coordenadas idénticas (${record.latitude}, ${record.longitude}) para el activo ${asset.id} (IMEI: ${imei}). Telemetría omitida.`);
-                this.logToFile(`[TCP GPS] WARN [${imei}]: Coordenadas idénticas (${record.latitude}, ${record.longitude}) para el activo ${asset.id}. Telemetría omitida.`);
+            // Validar que las coordenadas no sean idénticas a las últimas registradas,
+            // a menos que haya algún cambio de estado relevante (ignición, velocidad, o E/S).
+            const isLocationIdentical = lastTelemetry.latitud === String(record.latitude) && lastTelemetry.longitud === String(record.longitude);
+            const hasStateChanged = 
+                lastTelemetry.speed !== String(record.speed) ||
+                lastTelemetry.ignition !== record.ignition ||
+                lastTelemetry.din1 !== record.din1 ||
+                lastTelemetry.din2 !== record.din2 ||
+                lastTelemetry.dout1 !== record.dout1 ||
+                lastTelemetry.ain1 !== record.ain1;
+
+            if (isLocationIdentical && !hasStateChanged) {
+                this.logger.warn(`[TCP GPS] Coordenadas y estados idénticos (${record.latitude}, ${record.longitude}) para el activo ${asset.id} (IMEI: ${imei}). Telemetría omitida.`);
+                this.logToFile(`[TCP GPS] WARN [${imei}]: Coordenadas y estados idénticos (${record.latitude}, ${record.longitude}) para el activo ${asset.id}. Telemetría omitida.`);
                 return;
             }
 
@@ -349,9 +360,20 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             },
         });
 
-        if (lasTelemetry && lasTelemetry.latitud === String(body.latitude) && lasTelemetry.longitud === String(body.longitude)) {
-            this.logger.warn(`Las coordenadas son idénticas a la última telemetría registrada.`);
-            return null;
+        if (lasTelemetry) {
+            const isLocationIdentical = lasTelemetry.latitud === String(body.latitude) && lasTelemetry.longitud === String(body.longitude);
+            const hasStateChanged = 
+                lasTelemetry.speed !== String(body.speed) ||
+                lasTelemetry.ignition !== body.ignition ||
+                lasTelemetry.din1 !== body.din1 ||
+                lasTelemetry.din2 !== body.din2 ||
+                lasTelemetry.dout1 !== body.dout1 ||
+                lasTelemetry.ain1 !== body.ain1;
+
+            if (isLocationIdentical && !hasStateChanged) {
+                this.logger.warn(`Las coordenadas y estados son idénticas a la última telemetría registrada.`);
+                return null;
+            }
         }
 
         const [telemetry, updateAsset] = await this.prisma.$transaction(async (tx) => {

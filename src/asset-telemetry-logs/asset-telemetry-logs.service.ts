@@ -32,9 +32,21 @@ export class AssetTelemetryLogsService {
     });
 
 
-    // 2. Validar que las coordenadas no sean idénticas a las últimas registradas
-    if (lasTelemetry && lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud) {
-      throw new BadRequestException('Las coordenadas son idénticas a la última telemetría registrada.');
+    // 2. Validar que las coordenadas no sean idénticas a las últimas registradas,
+    // a menos que haya algún cambio de estado relevante (ignición, velocidad, o E/S).
+    if (lasTelemetry) {
+      const isLocationIdentical = lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud;
+      const hasStateChanged = 
+        lasTelemetry.speed !== dto.speed ||
+        lasTelemetry.ignition !== dto.ignition ||
+        lasTelemetry.din1 !== dto.din1 ||
+        lasTelemetry.din2 !== dto.din2 ||
+        lasTelemetry.dout1 !== dto.dout1 ||
+        lasTelemetry.ain1 !== dto.ain1;
+
+      if (isLocationIdentical && !hasStateChanged) {
+        throw new BadRequestException('Las coordenadas y estados son idénticas a la última telemetría registrada.');
+      }
     }
 
     // 3. Ejecutar la creación y la actualización en una transacción simultánea
