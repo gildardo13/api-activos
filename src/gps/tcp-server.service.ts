@@ -122,6 +122,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
 
                         try {
                             const parsed = parseAvlData(packet);
+                            this.logger.log(`[TCP GPS] Objeto parsed completo: ${JSON.stringify(parsed, null, 2)}`);
                             if (parsed) {
                                 this.logger.log(`[TCP GPS] Procesando ${parsed.recordsCount} registros AVL para IMEI: ${deviceImei}`);
                                 this.logToFile(`[TCP GPS] Procesando ${parsed.recordsCount} registros AVL para IMEI: ${deviceImei}`);
@@ -171,7 +172,20 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
     /**
      * Procesa un único registro de telemetría decodificado desde la trama TCP del GPS.
      */
-    async processTelemetryRecord(imei: string, record: { timestamp: Date; latitude: number; longitude: number; speed: number }) {
+    async processTelemetryRecord(
+        imei: string, 
+        record: { 
+            timestamp: Date; 
+            latitude: number; 
+            longitude: number; 
+            speed: number; 
+            din1?: number | null;
+            din2?: number | null;
+            dout1?: number | null;
+            ain1?: number | null;
+            ignition?: number | null;
+        }
+    ) {
         const deviceGps = await this.prisma.gpsDevice.findUnique({
             where: { imei },
         });
@@ -262,6 +276,11 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     longitud: String(record.longitude),
                     speed: String(record.speed),
                     imei: imei,
+                    din1: record.din1,
+                    din2: record.din2,
+                    dout1: record.dout1,
+                    ain1: record.ain1,
+                    ignition: record.ignition,
                     recordedAt: record.timestamp,
                 },
             });
@@ -343,6 +362,11 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     longitud: String(body.longitude),
                     speed: String(body.speed),
                     imei: body.imei,
+                    din1: body.din1,
+                    din2: body.din2,
+                    dout1: body.dout1,
+                    ain1: body.ain1,
+                    ignition: body.ignition,
                     recordedAt: body.timestamp ? new Date(body.timestamp) : new Date(),
                 },
             });

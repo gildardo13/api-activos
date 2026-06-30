@@ -45,6 +45,11 @@ export class AssetTelemetryLogsService {
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
+          din1: dto.din1,
+          din2: dto.din2,
+          dout1: dto.dout1,
+          ain1: dto.ain1,
+          ignition: dto.ignition,
           recordedAt: dto.recordedAt ?? new Date(),
         },
       });

@@ -94,6 +94,11 @@ model AssetTelemetryLog {
   longitud String
   speed String
   imei String?
+  din1 Int?
+  din2 Int?
+  dout1 Int?
+  ain1 Int?
+  ignition Int?
   recordedAt DateTime @default(now())
 
   asset Asset @relation(fields: [assetId], references: [id])
