@@ -359,11 +359,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             const isLocationIdentical = lasTelemetry.latitud === String(body.latitude) && lasTelemetry.longitud === String(body.longitude);
             const hasStateChanged = 
                 lasTelemetry.speed !== String(body.speed) ||
-                lasTelemetry.ignition !== body.ignition ||
-                lasTelemetry.din1 !== body.din1 ||
-                lasTelemetry.din2 !== body.din2 ||
-                lasTelemetry.dout1 !== body.dout1 ||
-                lasTelemetry.ain1 !== body.ain1;
+                lasTelemetry.ignition !== body.ignition
 
             if (isLocationIdentical && !hasStateChanged) {
                 this.logger.warn(`Las coordenadas y estados son idénticas a la última telemetría registrada.`);
