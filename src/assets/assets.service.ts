@@ -297,6 +297,30 @@ export class AssetsService {
     return { data, meta: { total: data.length } };
   }
 
+  async findAllNoQuerynotAssigment() {
+    const data = await this.prisma.asset.findMany({
+      where: {
+        assetAssignments: {
+          none: {
+            returnedAt: null,
+          },
+        },
+      },
+      include: {
+        assetType: true,
+        assetTelemetryLogs: true,
+        assetDocuments: true,
+        assetGeofences: true,
+        assetAssignments: true,
+        gpsDevice: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  }
+
   async findOne(id: string) {
     const asset = await this.prisma.asset.findUnique({
       where: { id },
