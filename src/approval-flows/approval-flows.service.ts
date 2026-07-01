@@ -312,4 +312,78 @@ export class ApprovalFlowsService {
 
     }
   }
+
+  async resolveReference(clientReferenceId: string, actionKey: string): Promise<{ description: string }> {
+    try {
+      const key = (actionKey || '').toUpperCase();
+      let description = 'N/A';
+
+      if (!clientReferenceId) {
+        return { description };
+      }
+
+      const shortId = clientReferenceId.slice(0, 8);
+
+      if (key === 'ASSIGNMENT') {
+        const assignment = await this.prisma.assetAssignment.findUnique({
+          where: { id: clientReferenceId },
+          include: {
+            asset: true,
+            project: true,
+          },
+        });
+
+        if (assignment) {
+          const assetName = assignment.asset?.name || '';
+          let assigneeName = '';
+
+          if (assignment.assignmentType === 'STAFF') {
+            const staff = assignment.staffId as any;
+            assigneeName = staff?.name || 'Colaborador';
+          } else if (assignment.assignmentType === 'AREA') {
+            const area = assignment.areaId as any;
+            assigneeName = area?.name || 'Área';
+          } else if (assignment.assignmentType === 'PROJECT') {
+            assigneeName = assignment.project?.name || 'Proyecto';
+          }
+
+          description = `${assetName}${assigneeName ? ` - Asignado: ${assigneeName}` : ''}`;
+        } else {
+          description = `Asignación (${shortId})`;
+        }
+      } else if (key === 'CHANGES') {
+        const document = await this.prisma.assetDocument.findUnique({
+          where: { id: clientReferenceId },
+          include: {
+            asset: true,
+            assetFieldDefinition: true,
+          },
+        });
+
+        if (document) {
+          const assetName = document.asset?.name || '';
+          const docType = document.assetFieldDefinition?.label || 'Documento';
+          const fileName = document.fileName || '';
+          description = `${assetName ? `${assetName} - ` : ''}${docType}: ${fileName}`;
+        } else {
+          description = `Documento (${shortId})`;
+        }
+      } else if (key === 'UPDATE' || key === 'UPDATE_INFO' || key === 'ACTIVE_MODIFICATION') {
+        const asset = await this.prisma.asset.findUnique({
+          where: { id: clientReferenceId },
+        });
+
+        if (asset) {
+          description = `${asset.name}${asset.code ? ` == ${asset.code}` : ''}`;
+        } else {
+          description = `Activo (${shortId})`;
+        }
+      }
+
+      return { description };
+    } catch (err: any) {
+      this.logger.error(`resolveReference error: ${err.message}`);
+      return { description: 'N/A' };
+    }
+  }
 }

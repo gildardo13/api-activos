@@ -45,4 +45,12 @@ export class ApprovalFlowsController {
     return this.approvalFlowsService.getWorkflowByIdClientReference(clientReferenceId, moduleActionId);
   }
 
+  @Post('/resolve-reference')
+  resolveReference(
+    @Body() body: { id?: string; clientReferenceId?: string; key?: string; moduleAction?: { key: string } }
+  ) {
+    const id = body.id || body.clientReferenceId;
+    const key = body.key || body.moduleAction?.key;
+    return this.approvalFlowsService.resolveReference(id, key);
+  }
 }
