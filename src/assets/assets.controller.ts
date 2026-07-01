@@ -59,6 +59,12 @@ export class AssetsController {
   findAllNoQuery() {
     return this.assetsService.findAllNoQuery();
   }
+
+  @Get('/find-all-no-query-notAssigment')
+  @HttpCode(HttpStatus.OK)
+  findAllNoQuerynotAssigment() {
+    return this.assetsService.findAllNoQuerynotAssigment();
+  }
   
   @Get('/getOneAsset/:id')
   @HttpCode(HttpStatus.OK)
