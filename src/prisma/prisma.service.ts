@@ -1,58 +1,30 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService implements OnModuleInit, OnModuleDestroy {
-  private prisma: any;
-  private currentDatabaseUrl: string;
-
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
     let databaseUrl = process.env.DATABASE_URL;
 
-    // Limit connections to avoid exhausting RDS slots
     if (databaseUrl && !databaseUrl.includes('connection_limit')) {
       const separator = databaseUrl.includes('?') ? '&' : '?';
-      databaseUrl += `${separator}connection_limit=2&pool_timeout=20`;
+      databaseUrl += `${separator}connection_limit=3&pool_timeout=15`;
     }
 
-    this.currentDatabaseUrl = databaseUrl;
-    // this.prisma = this.createPrismaClient(databaseUrl);
-  }
-
-  private createPrismaClient(databaseUrl: string): any {
-    /* return new PrismaClient({
+    super({
       datasources: {
         db: {
           url: databaseUrl,
         },
       },
-    }); */
-    return null;
+    });
   }
 
   async onModuleInit() {
-    await this.prisma.$connect();
-    //await this.prismaAuth.$connect();
+    await this.$connect();
   }
 
   async onModuleDestroy() {
-    await this.prisma.$disconnect();
-    //await this.prismaAuth.$disconnect();
+    await this.$disconnect();
   }
-
-  get client() {
-    return this.prisma;
-  }
-
-  // async setDatabaseUrl(databaseUrl: string) {
-  //   if (this.currentDatabaseUrl !== databaseUrl) {
-  //     this.currentDatabaseUrl = databaseUrl;
-
-  //     console.log('conexion desconectada');
-  //     await this.prisma.$disconnect();
-
-  //     this.prisma = this.createPrismaClient(databaseUrl);
-  //     console.log('conexion conectada');
-  //     await this.prisma.$connect();
-  //   }
-  // }
 }

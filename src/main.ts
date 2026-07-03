@@ -27,6 +27,7 @@ async function bootstrap() {
       'http://localhost:4000', // control activos (nuevo)
       'http://localhost:4001', // admin
       'http://localhost:9001', // control documental
+      'http://localhost:4002', // control activo
       'https://auth.jibby.mx',
       'https://activos.jibby.mx',
       'https://admin.jibby.mx',
@@ -38,8 +39,8 @@ async function bootstrap() {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'empresa', 'systemkey'],
-    exposedHeaders: ['x-new-access-token'], // si aún lo usas
+    allowedHeaders: ['Content-Type', 'Authorization', 'empresa', 'systemkey', 'organizationid', 'X-Is-Development'],
+    exposedHeaders: ['x-new-access-token', 'X-Is-Development'], // si aún lo usas
   });
 
   const config = new DocumentBuilder()
