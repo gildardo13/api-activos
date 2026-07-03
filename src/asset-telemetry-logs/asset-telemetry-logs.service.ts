@@ -77,7 +77,7 @@ export class AssetTelemetryLogsService {
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
-          din1: dto.din1 !== undefined && dto.din1 !== null ? dto.din1 : dto.ignition,
+          din1: dto.din1 !== undefined && dto.din1 !== null ? dto.din1 : 0,
           din2: dto.din2 !== undefined && dto.din2 !== null ? dto.din2 : 0,
           dout1: dto.dout1 !== undefined && dto.dout1 !== null ? dto.dout1 : 0,
           ain1: dto.ain1 !== undefined && dto.ain1 !== null ? dto.ain1 : 0,
