@@ -1,0 +1,226 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum StatusAsset {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum StatusReturn{
+  RETURNED
+  IN_USE
+  PENDING
+}
+
+enum StatusApproval{
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+
+enum AssignmentType {
+  PROJECT
+  STAFF
+  AREA
+}
+
+enum ClasificationType {
+  MOVABLE
+  INMOVABLE
+}
+
+model AssetType {
+  id          String   @id @default(uuid())
+  categoryId  Json?
+  name        String
+  description String?
+  status Status @default(ACTIVE)
+  clasificationType ClasificationType? 
+  assets      Asset[]
+  assetFieldDefinitions      AssetFieldDefinition[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+model Asset {
+  id          String   @id @default(uuid())
+  assetTypeId String
+  gpsDeviceId String?
+  code String
+  name String
+  description String?
+  status StatusAsset @default(ACTIVE)
+  lastLocation String?
+  attributesData Json?
+  statusApproval StatusApproval?
+  commentsApproval String?
+
+  
+  gpsDevice GpsDevice? @relation(fields: [gpsDeviceId], references: [id])
+  assetTelemetryLogs  AssetTelemetryLog[]
+  assetDocuments AssetDocument[]
+  assetGeofences AssetGeofence[]
+  assetAssignments AssetAssignment[]
+  assetType AssetType @relation(fields: [assetTypeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetTypeId])
+}
+
+model AssetTelemetryLog {
+  id String @id @default(uuid())
+  assetId String
+  latitud String
+  longitud String
+  speed String
+  imei String?
+  recordedAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+}
+
+model GpsDevice {
+  id String @id @default(uuid())
+  imei String @unique
+  model String?
+  phoneNumber String?
+  providerCompany String?
+  assets Asset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([imei])
+}
+
+model AssetFieldDefinition {
+  id String @id @default(uuid())
+  assetTypeId String
+  label String
+  fieldType String
+  placeholder String?
+  options Json?
+  isRequired Boolean
+  
+  assetDocuments AssetDocument[]
+  assetType AssetType @relation(fields: [assetTypeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetTypeId])
+ 
+}
+
+
+model AssetDocument {
+  id String @id @default(uuid())
+  fieldDefinitionId String
+  assetId String
+  fileName String
+  fileUrl String
+  uploadedAt DateTime @default(now())
+  statusApproval StatusApproval?
+  commentsApproval String?
+
+  assetDocumentChunks  AssetDocumentChunk[]
+  asset Asset @relation(fields: [assetId], references: [id])
+  assetFieldDefinition AssetFieldDefinition @relation(fields: [fieldDefinitionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fieldDefinitionId])
+  @@index([assetId])
+}
+
+model AssetGeofence {
+  id String @id @default(uuid())
+  assetId String
+  name String
+  coordinates Json?    @default("[]")
+  status Status @default(ACTIVE)
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+
+}
+
+model AssetDocumentChunk {
+  id String @id @default(uuid())
+  assetDocumentId String
+  content String
+  embedding String
+  
+  assetDocument AssetDocument @relation(fields: [assetDocumentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetDocumentId])
+}
+
+model AssetAssignment {
+  id String @id @default(uuid())
+  assetId String
+  assignmentType AssignmentType
+  projectId String?
+  staffId Json?
+  areaId Json?
+  assignedAt DateTime
+  returnedAt DateTime?
+  statusReturned StatusReturn?
+  statusApproval StatusApproval?
+  commentsApproval String?
+
+  asset Asset @relation(fields: [assetId], references: [id])
+  project   Project?   @relation(fields: [projectId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+  @@index([projectId])
+  @@index([staffId])
+  @@index([areaId])
+}
+
+model Project{
+  id String @id @default(uuid())
+  name String
+  code String
+  status Status @default(ACTIVE)
+  typeId String?
+
+  assetAssignments AssetAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
