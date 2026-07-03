@@ -23,7 +23,8 @@ async function bootstrap() {
       'http://localhost:5173', // compras
       'http://localhost:5174', // proveedores
       'http://localhost:3000', // auth
-      'http://localhost:3001', // control activos
+      'http://localhost:3001', // control activos (legacy)
+      'http://localhost:4000', // control activos (nuevo)
       'http://localhost:4001', // admin
       'http://localhost:9001', // control documental
       'https://auth.jibby.mx',
