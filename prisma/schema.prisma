@@ -100,6 +100,7 @@ model AssetTelemetryLog {
   ain1 Int?
   ignition Int?
   externalVoltage Float?
+  batteryVoltage Float?
   
   recordedAt DateTime @default(now())
 

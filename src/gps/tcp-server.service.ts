@@ -26,11 +26,11 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
 
     onApplicationBootstrap() {
         const port = process.env.GPS_TCP_PORT ? parseInt(process.env.GPS_TCP_PORT, 10) : 2102;
-        
+
         this.server = net.createServer((socket) => {
             const remoteAddress = `${socket.remoteAddress}:${socket.remotePort}`;
             this.logger.log(`Nueva conexión TCP GPS establecida desde ${remoteAddress}`);
-            
+
             let deviceImei: string | null = null;
             let bufferAccumulator = Buffer.alloc(0);
 
@@ -56,9 +56,9 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                         if (bufferAccumulator.length < 2 + imeiLen) {
                             break; // Esperar más datos
                         }
-                        
+
                         const imei = bufferAccumulator.toString('ascii', 2, 2 + imeiLen);
-                        
+
                         try {
                             const deviceGps = await this.prisma.gpsDevice.findUnique({
                                 where: { imei },
@@ -173,12 +173,12 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
      * Procesa un único registro de telemetría decodificado desde la trama TCP del GPS.
      */
     async processTelemetryRecord(
-        imei: string, 
-        record: { 
-            timestamp: Date; 
-            latitude: number; 
-            longitude: number; 
-            speed: number; 
+        imei: string,
+        record: {
+            timestamp: Date;
+            latitude: number;
+            longitude: number;
+            speed: number;
             din1?: number | null;
             din2?: number | null;
             dout1?: number | null;
@@ -214,6 +214,12 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             return;
         }
 
+        if (record.latitude === 0 || record.longitude === 0) {
+            this.logger.warn(`[TCP GPS] Coordenadas en 0 omitidas para el activo ${asset.name} (IMEI: ${imei}). Lat: ${record.latitude}, Lng: ${record.longitude}`);
+            this.logToFile(`[TCP GPS] WARN [${imei}]: Coordenadas en 0 omitidas para el activo ${asset.name}.`);
+            return;
+        }
+
         const assetAssignment = await this.prisma.assetAssignment.findFirst({
             where: {
                 assetId: asset.id,
@@ -237,7 +243,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
         }
 
         // Se obtiene la ignición directamente del ID 239 leído por el parser
-         
+
 
 
         // Obtener la última telemetría registrada para este activo
@@ -254,7 +260,12 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             // Validar que las coordenadas no sean idénticas a las últimas registradas,
             // a menos que haya algún cambio de estado relevante (ignición, velocidad, o E/S).
             const isLocationIdentical = lastTelemetry.latitud === String(record.latitude) && lastTelemetry.longitud === String(record.longitude);
-            const hasStateChanged = lastTelemetry.ignition !== record.ignition
+            
+            const lastVoltage = lastTelemetry.externalVoltage !== null ? Number(lastTelemetry.externalVoltage) : 0;
+            const wasOnExternalPower = lastVoltage > 5;
+            const isExternalPowerLost = (record.externalVoltage === 0 || record.externalVoltage === null) && wasOnExternalPower;
+
+            const hasStateChanged = lastTelemetry.ignition !== record.ignition || isExternalPowerLost;
 
 
             if (isLocationIdentical && !hasStateChanged) {
@@ -262,12 +273,20 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                 this.logToFile(`[TCP GPS] WARN [${imei}]: Coordenadas y estados idénticos (${record.latitude}, ${record.longitude}) para el activo ${asset.id}. Telemetría omitida.`);
                 return;
             }
-
-            // Evitar registros duplicados consecutivos con ignición 0
-            if (lastTelemetry.ignition === 0 && record.ignition === 0) {
+          
+            //.APAGADO
+            const isStillOff = lastVoltage <= 5 && (record.externalVoltage === 0 || record.externalVoltage === null);
+            if (isStillOff) {
                 this.logger.warn(`[TCP GPS] Vehículo ya estaba apagado (IMEI: ${imei}). Omitiendo reporte.`);
+                this.logToFile(`[TCP GPS] WARN [${imei}]: Vehículo ya estaba apagado. Omitiendo reporte.`);
                 return;
             }
+
+            // Evitar registros duplicados consecutivos con ignición 0
+            /*if (lastTelemetry.ignition === 0 && record.ignition === 0) {
+                this.logger.warn(`[TCP GPS] Vehículo ya estaba apagado (IMEI: ${imei}). Omitiendo reporte.`);
+                return;
+            }*/
 
             //VALIDADOR IMPOSIBLE DE SALTO DE KM
             const lat1 = parseFloat(lastTelemetry.latitud);
@@ -287,18 +306,20 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     return;
                 }
             }
-             //VALIDADOR IMPOSIBLE DE SALTO DE KM
+            //VALIDADOR IMPOSIBLE DE SALTO DE KM
         }
 
         // Ejecutar creación y actualización en transacción
         await this.prisma.$transaction(async (tx) => {
-            // MODIFICACIÓN: Si el voltaje externo es 0 (o no llega) y disponemos de la batería interna,
-            // guardamos el voltaje de la batería interna (convertido a Voltios) en el mismo campo.
-            let finalVoltage: number | null = null;
-            if (record.externalVoltage !== null && record.externalVoltage !== undefined && record.externalVoltage > 0) {
-                finalVoltage = record.externalVoltage / 1000;
-            } else if (record.batteryVoltage !== null && record.batteryVoltage !== undefined) {
-                finalVoltage = record.batteryVoltage / 1000;
+            // MODIFICACIÓN: Voltaje externo y de batería se guardan de forma independiente (en Voltios).
+            let finalExternalVoltage: number | null = null;
+            if (record.externalVoltage !== null && record.externalVoltage !== undefined) {
+                finalExternalVoltage = record.externalVoltage / 1000;
+            }
+
+            let finalBatteryVoltage: number | null = null;
+            if (record.batteryVoltage !== null && record.batteryVoltage !== undefined) {
+                finalBatteryVoltage = record.batteryVoltage / 1000;
             }
 
             const newTelemetry = await tx.assetTelemetryLog.create({
@@ -313,7 +334,8 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     dout1: record.dout1,
                     ain1: record.ain1,
                     ignition: record.ignition,
-                    externalVoltage: finalVoltage,
+                    externalVoltage: finalExternalVoltage,
+                    batteryVoltage: finalBatteryVoltage,
                     recordedAt: record.timestamp,
                 },
             });
@@ -359,6 +381,11 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             this.logger.warn(`El GPS con ID ${deviceGps.id} (IMEI: ${body.imei}) no está asignado a ningún activo.`);
             return null;
         }
+
+        if (body.latitude === 0 || body.longitude === 0) {
+            this.logger.warn(`[REST GPS] Coordenadas en 0 omitidas para el activo ${asset.name} (IMEI: ${body.imei}). Lat: ${body.latitude}, Lng: ${body.longitude}`);
+            return null;
+        }
         const assetAssignment = await this.prisma.assetAssignment.findFirst({
             where: {
                 assetId: asset.id,
@@ -390,29 +417,37 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
 
         if (lasTelemetry) {
             const isLocationIdentical = lasTelemetry.latitud === String(body.latitude) && lasTelemetry.longitud === String(body.longitude);
+            
+            const lastVoltage = lasTelemetry.externalVoltage !== null ? Number(lasTelemetry.externalVoltage) : 0;
+            const wasOnExternalPower = lastVoltage > 5;
+            const isExternalPowerLost = (body.externalVoltage === 0 || body.externalVoltage === null) && wasOnExternalPower;
+
             const hasStateChanged = 
                 lasTelemetry.speed !== String(body.speed) ||
-                lasTelemetry.ignition !== body.ignition
+                lasTelemetry.ignition !== body.ignition ||
+                isExternalPowerLost;
 
             if (isLocationIdentical && !hasStateChanged) {
                 this.logger.warn(`Las coordenadas y estados son idénticas a la última telemetría registrada.`);
                 return null;
             }
-
-            // Evitar registros duplicados consecutivos con ignición 0
-            if (lasTelemetry.ignition === 0 && body.ignition === 0) {
+            //.APAGADO
+            const isStillOff = lastVoltage <= 5 && (body.externalVoltage === 0 || body.externalVoltage === null);
+            if (isStillOff) {
                 this.logger.warn(`Vehículo ya estaba apagado (REST). Omitiendo reporte.`);
                 return null;
             }
+
+            // Evitar registros duplicados consecutivos con ignición 0
+            /*if (lasTelemetry.ignition === 0 && body.ignition === 0) {
+                this.logger.warn(`Vehículo ya estaba apagado (REST). Omitiendo reporte.`);
+                return null;
+            }*/
         }
 
         const [telemetry, updateAsset] = await this.prisma.$transaction(async (tx) => {
-            // MODIFICACIÓN: Si el voltaje externo es 0 o inexistente, y disponemos de la batería interna,
-            // guardamos el voltaje de la batería interna en el mismo campo.
-            let finalVoltage = body.externalVoltage;
-            if ((body.externalVoltage === null || body.externalVoltage === undefined || body.externalVoltage === 0) && body.batteryVoltage) {
-                finalVoltage = body.batteryVoltage;
-            }
+            const finalExternalVoltage = body.externalVoltage !== undefined ? body.externalVoltage : null;
+            const finalBatteryVoltage = body.batteryVoltage !== undefined ? body.batteryVoltage : null;
 
             const newTelemetry = await tx.assetTelemetryLog.create({
                 data: {
@@ -421,12 +456,13 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     longitud: String(body.longitude),
                     speed: String(body.speed),
                     imei: body.imei,
-                    din1: body.din1,
-                    din2: body.din2,
-                    dout1: body.dout1,
-                    ain1: body.ain1,
+                    din1: body.din1 !== undefined && body.din1 !== null ? body.din1 : body.ignition,
+                    din2: body.din2 !== undefined && body.din2 !== null ? body.din2 : 0,
+                    dout1: body.dout1 !== undefined && body.dout1 !== null ? body.dout1 : 0,
+                    ain1: body.ain1 !== undefined && body.ain1 !== null ? body.ain1 : 0,
                     ignition: body.ignition,
-                    externalVoltage: finalVoltage,
+                    externalVoltage: finalExternalVoltage,
+                    batteryVoltage: finalBatteryVoltage,
                     recordedAt: body.timestamp ? new Date(body.timestamp) : new Date(),
                 },
             });

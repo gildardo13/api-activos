@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto';
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,13 +8,15 @@ import { isPointInPolygon } from './helper/helper';
 
 @Injectable()
 export class AssetTelemetryLogsService {
+  private readonly logger = new Logger(AssetTelemetryLogsService.name);
+
   constructor(private prisma: PrismaService) { }
 
   // 1. REGISTRAR TELEMETRÍA
   async create(dto: CreateAssetTelemetryLogDto) {
     // MODIFICACIÓN: Si el motor está apagado (ignition === 0), forzamos la velocidad a '0'
     // para evitar que la deriva de la señal GPS registre velocidades falsas con el tractor quieto.
-    if (dto.ignition === 0) {
+    if (dto.ignition=== 0) {
       dto.speed = '0';
     }
 
@@ -25,6 +27,10 @@ export class AssetTelemetryLogsService {
 
     if (!assetExist) {
       throw new BadRequestException('Asset not found');
+    }
+
+    if (parseFloat(dto.latitud) === 0 || parseFloat(dto.longitud) === 0) {
+      throw new BadRequestException('La latitud o longitud no pueden ser 0.');
     }
 
     // Obtener la última telemetría registrada para este activo
@@ -42,26 +48,28 @@ export class AssetTelemetryLogsService {
     // a menos que haya algún cambio de estado relevante (ignición, velocidad, o E/S).
     if (lasTelemetry) {
       const isLocationIdentical = lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud;
-      const hasStateChanged = lasTelemetry.ignition !== dto.ignition
+      
+      const lastVoltage = lasTelemetry.externalVoltage !== null ? Number(lasTelemetry.externalVoltage) : 0;
+      const wasOnExternalPower = lastVoltage > 5;
+      const isExternalPowerLost = (dto.externalVoltage === 0 || dto.externalVoltage === null) && wasOnExternalPower;
+
+      const hasStateChanged = lasTelemetry.ignition !== dto.ignition || isExternalPowerLost;
 
       if (isLocationIdentical && !hasStateChanged) {
         throw new BadRequestException('Las coordenadas y estados son idénticas a la última telemetría registrada.');
       }
 
-      // Evitar registros duplicados consecutivos con ignición 0
-      if (lasTelemetry.ignition === 0 && dto.ignition === 0) {
+      //.APAGADO.
+      const isStillOff = lastVoltage <= 5 && (dto.externalVoltage === 0 || dto.externalVoltage === null);
+      if (isStillOff) {
         throw new BadRequestException('El vehículo ya estaba apagado. Telemetría omitida.');
       }
     }
 
     // 3. Ejecutar la creación y la actualización en una transacción simultánea
     const [telemetry, updateAsset] = await this.prisma.$transaction(async (tx) => {
-      // MODIFICACIÓN: Si el voltaje externo es 0 o inexistente, y disponemos de la batería interna,
-      // guardamos el voltaje de la batería interna en el mismo campo.
-      let finalVoltage = dto.externalVoltage;
-      if ((dto.externalVoltage === null || dto.externalVoltage === undefined || dto.externalVoltage === 0) && dto.batteryVoltage) {
-        finalVoltage = dto.batteryVoltage;
-      }
+      const finalExternalVoltage = dto.externalVoltage !== undefined ? dto.externalVoltage : null;
+      const finalBatteryVoltage = dto.batteryVoltage !== undefined ? dto.batteryVoltage : null;
 
       const newTelemetry = await tx.assetTelemetryLog.create({
         data: {
@@ -69,12 +77,13 @@ export class AssetTelemetryLogsService {
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
-          din1: dto.din1,
-          din2: dto.din2,
-          dout1: dto.dout1,
-          ain1: dto.ain1,
+          din1: dto.din1 !== undefined && dto.din1 !== null ? dto.din1 : dto.ignition,
+          din2: dto.din2 !== undefined && dto.din2 !== null ? dto.din2 : 0,
+          dout1: dto.dout1 !== undefined && dto.dout1 !== null ? dto.dout1 : 0,
+          ain1: dto.ain1 !== undefined && dto.ain1 !== null ? dto.ain1 : 0,
           ignition: dto.ignition,
-          externalVoltage: finalVoltage,
+          externalVoltage: finalExternalVoltage,
+          batteryVoltage: finalBatteryVoltage,
           recordedAt: dto.recordedAt ?? new Date(),
         },
       });
