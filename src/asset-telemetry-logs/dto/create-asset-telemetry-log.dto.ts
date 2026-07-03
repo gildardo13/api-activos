@@ -1,4 +1,4 @@
-import { IsDateString, IsInt, IsOptional, IsString } from "class-validator";
+import { IsDateString, IsInt, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class CreateAssetTelemetryLogDto {
     @IsString()
@@ -33,6 +33,14 @@ export class CreateAssetTelemetryLogDto {
     @IsInt()
     @IsOptional()
     ignition?: number;
+
+    @IsNumber()
+    @IsOptional()
+    externalVoltage?: number;
+
+    @IsNumber()
+    @IsOptional()
+    batteryVoltage?: number;
 
     @IsDateString()
     recordedAt: Date;

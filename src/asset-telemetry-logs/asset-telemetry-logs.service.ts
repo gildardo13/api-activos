@@ -12,6 +12,12 @@ export class AssetTelemetryLogsService {
 
   // 1. REGISTRAR TELEMETRÍA
   async create(dto: CreateAssetTelemetryLogDto) {
+    // MODIFICACIÓN: Si el motor está apagado (ignition === 0), forzamos la velocidad a '0'
+    // para evitar que la deriva de la señal GPS registre velocidades falsas con el tractor quieto.
+    if (dto.ignition === 0) {
+      dto.speed = '0';
+    }
+
     // 1. Verificar si el asset existe
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
@@ -36,17 +42,27 @@ export class AssetTelemetryLogsService {
     // a menos que haya algún cambio de estado relevante (ignición, velocidad, o E/S).
     if (lasTelemetry) {
       const isLocationIdentical = lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud;
-      const hasStateChanged = 
-        lasTelemetry.speed !== dto.speed ||
-        lasTelemetry.ignition !== dto.ignition
+      const hasStateChanged = lasTelemetry.ignition !== dto.ignition
 
       if (isLocationIdentical && !hasStateChanged) {
         throw new BadRequestException('Las coordenadas y estados son idénticas a la última telemetría registrada.');
+      }
+
+      // Evitar registros duplicados consecutivos con ignición 0
+      if (lasTelemetry.ignition === 0 && dto.ignition === 0) {
+        throw new BadRequestException('El vehículo ya estaba apagado. Telemetría omitida.');
       }
     }
 
     // 3. Ejecutar la creación y la actualización en una transacción simultánea
     const [telemetry, updateAsset] = await this.prisma.$transaction(async (tx) => {
+      // MODIFICACIÓN: Si el voltaje externo es 0 o inexistente, y disponemos de la batería interna,
+      // guardamos el voltaje de la batería interna en el mismo campo.
+      let finalVoltage = dto.externalVoltage;
+      if ((dto.externalVoltage === null || dto.externalVoltage === undefined || dto.externalVoltage === 0) && dto.batteryVoltage) {
+        finalVoltage = dto.batteryVoltage;
+      }
+
       const newTelemetry = await tx.assetTelemetryLog.create({
         data: {
           assetId: dto.assetId,
@@ -58,6 +74,7 @@ export class AssetTelemetryLogsService {
           dout1: dto.dout1,
           ain1: dto.ain1,
           ignition: dto.ignition,
+          externalVoltage: finalVoltage,
           recordedAt: dto.recordedAt ?? new Date(),
         },
       });
@@ -107,7 +124,7 @@ export class AssetTelemetryLogsService {
       );
     }
 
-    return latest;
+    return this.adjustTelemetryOfflineStatus(latest);
   }
 
   // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
@@ -165,7 +182,7 @@ export class AssetTelemetryLogsService {
     return listAsset.map((asset) => {
       const telemetry = telemetries.find((t) => t.id === asset.lastLocation);
       return {
-        ...telemetry,
+        ...this.adjustTelemetryOfflineStatus(telemetry),
         assetId: asset
       };
     });
@@ -208,7 +225,7 @@ export class AssetTelemetryLogsService {
     // Retorna exactamente la estructura que esperabas en tu controlador
     return {
       logs,
-      lastLocations,
+      lastLocations: this.adjustTelemetryArray(lastLocations),
     };
   }
 
@@ -382,5 +399,25 @@ export class AssetTelemetryLogsService {
         assetId: assetId
       }
     });
+  }
+
+  private adjustTelemetryOfflineStatus(telemetry: any) {
+    if (!telemetry) return telemetry;
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const dateToCheck = telemetry.recordedAt || telemetry.createdAt;
+
+    if (dateToCheck && new Date(dateToCheck) < tenMinutesAgo) {
+      return {
+        ...telemetry,
+        ignition: null,
+      };
+    }
+
+    return telemetry;
+  }
+
+  private adjustTelemetryArray(telemetries: any[]) {
+    return telemetries.map((t) => this.adjustTelemetryOfflineStatus(t));
   }
 }

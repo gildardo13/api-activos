@@ -99,6 +99,8 @@ model AssetTelemetryLog {
   dout1 Int?
   ain1 Int?
   ignition Int?
+  externalVoltage Float?
+  
   recordedAt DateTime @default(now())
 
   asset Asset @relation(fields: [assetId], references: [id])

@@ -9,4 +9,6 @@ export interface GpsBody {
   dout1?: number;
   ain1?: number;
   ignition?: number;
+  externalVoltage?: number;
+  batteryVoltage?: number;
 }

@@ -12,6 +12,8 @@ export interface AvlRecord {
   dout1?: number | null;
   ain1?: number | null;
   ignition?: number | null;
+  externalVoltage?: number | null;
+  batteryVoltage?: number | null;
 }
 
 export interface ParsedAvlData {
@@ -110,6 +112,9 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
     let dout1: number | null = null;
     let ain1: number | null = null;
     let ignition: number | null = null;
+    let externalVoltage: number | null = null;
+    let batteryVoltage: number | null = null;
+
 
     // Parseo de I/O Elements
     if (codecId === 0x08) {
@@ -145,6 +150,8 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
         const val = buffer.readUInt16BE(offset + 1);
         offset += 3;
         if (id === 9) ain1 = val;
+        else if (id === 66) externalVoltage = val;
+        else if (id === 67 || id === 113) batteryVoltage = val;
       }
 
       // M4 (4 bytes IO)
@@ -192,6 +199,8 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
         const val = buffer.readUInt16BE(offset + 2);
         offset += 4;
         if (id === 9) ain1 = val;
+        else if (id === 66) externalVoltage = val;
+        else if (id === 67 || id === 113) batteryVoltage = val;
       }
 
       // M4 (4 bytes IO)
@@ -234,6 +243,8 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
       dout1,
       ain1,
       ignition,
+      externalVoltage,
+      batteryVoltage,
     });
   }
 
