@@ -112,6 +112,16 @@ model AssetTelemetryLog {
   @@index([assetId])
 }
 
+model ApprovalFlowBody{
+  id String @id @default(uuid())
+  idReference String
+  idRequest String?
+  metadata Json?    @map("metadata")
+  typeAction String
+  statusApproval StatusApproval?
+  commentsApproval String?
+}
+
 model GpsDevice {
   id String @id @default(uuid())
   imei String @unique
