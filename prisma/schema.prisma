@@ -94,6 +94,14 @@ model AssetTelemetryLog {
   longitud String
   speed String
   imei String?
+  din1 Int?
+  din2 Int?
+  dout1 Int?
+  ain1 Int?
+  ignition Int?
+  externalVoltage Float?
+  batteryVoltage Float?
+  
   recordedAt DateTime @default(now())
 
   asset Asset @relation(fields: [assetId], references: [id])
@@ -102,6 +110,16 @@ model AssetTelemetryLog {
   updatedAt DateTime @updatedAt
 
   @@index([assetId])
+}
+
+model ApprovalFlowBody{
+  id String @id @default(uuid())
+  idReference String
+  idRequest String?
+  metadata Json?    @map("metadata")
+  typeAction String
+  statusApproval StatusApproval?
+  commentsApproval String?
 }
 
 model GpsDevice {

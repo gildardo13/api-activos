@@ -23,6 +23,7 @@ import { InfoExternalModule } from './info-external/info-external.module';
 import { ApprovalFlowsModule } from './approval-flows/approval-flows.module';
 import { GpsDeviceModule } from './gps-device/gps-device.module';
 import { GpsModule } from './gps/tcp-server.module';
+import { ApprovalFlowBodyModule } from './approval-flow-body/approval-flow-body.module';
 
 @Module({
   imports: [
@@ -47,7 +48,8 @@ import { GpsModule } from './gps/tcp-server.module';
     InfoExternalModule,
     ApprovalFlowsModule,
     GpsDeviceModule,
-    GpsModule
+    GpsModule,
+    ApprovalFlowBodyModule
   ],
   controllers: [],
   providers: [],

@@ -86,34 +86,34 @@ export class SetDatabaseMiddleware implements NestMiddleware {
           },
         );
 
-        if (adminRes) {
-          const { user, organization } = await adminRes.json();
-          if (['admin', 'owner'].includes(user.role)) {
-            const empresa =
-              organization.id ||
-              (req.headers['empresa'] as string | undefined);
+        if (adminRes && adminRes.ok) {
+          try {
+            const data = await adminRes.json();
+            if (data && data.user && data.organization) {
+              const { user, organization } = data;
+              if (['admin', 'owner'].includes(user.role)) {
+                const empresa =
+                  organization.id ||
+                  (req.headers['empresa'] as string | undefined);
 
-            if (!empresa) {
-              return res.status(400).json({ message: 'Empresa requerida' });
+                if (!empresa) {
+                  return res.status(400).json({ message: 'Empresa requerida' });
+                }
+
+                const prisma =
+                  await this.prismaMultiService.getClientForCompany(empresa);
+              
+                req.prisma = prisma;
+                req.empresa = empresa;
+                req.userInfo = {
+                  sub: user.id,
+                };
+
+                return next();
+              }
             }
-
-            const prisma =
-              await this.prismaMultiService.getClientForCompany(empresa);
-          
-            req.prisma = prisma;
-            req.empresa = empresa;
-            req.userInfo = {
-              sub: user.id,
-            };
-
-            // Sync lazy de RH en background con el token ya validado
-            /*const userKey = `${empresa}-${user.id}`;
-            if (!SetDatabaseMiddleware.syncedUsers.has(userKey)) {
-              SetDatabaseMiddleware.syncedUsers.add(userKey);
-              this.integrationService.triggerBootstrapSync(adminSession, empresa);
-            }*/
-
-            return next();
+          } catch (jsonErr) {
+            console.error('Error parsing admin userinfo json:', jsonErr);
           }
         }
         // si falla, NO return → sigue al flujo Control Activos normal
