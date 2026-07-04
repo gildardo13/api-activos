@@ -261,11 +261,12 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             // a menos que haya algún cambio de estado relevante (ignición, velocidad, o E/S).
             const isLocationIdentical = lastTelemetry.latitud === String(record.latitude) && lastTelemetry.longitud === String(record.longitude);
             
-            const lastVoltage = lastTelemetry.externalVoltage !== null ? Number(lastTelemetry.externalVoltage) : 0;
+            const lastMetadata = (lastTelemetry.metadata as Record<string, any>) || {};
+            const lastVoltage = lastMetadata.externalVoltage !== undefined && lastMetadata.externalVoltage !== null ? Number(lastMetadata.externalVoltage) : 0;
             const wasOnExternalPower = lastVoltage > 5;
             const isExternalPowerLost = (record.externalVoltage === 0 || record.externalVoltage === null) && wasOnExternalPower;
 
-            const hasStateChanged = lastTelemetry.ignition !== record.ignition || isExternalPowerLost;
+            const hasStateChanged = lastMetadata.ignition !== record.ignition || isExternalPowerLost;
 
 
             if (isLocationIdentical && !hasStateChanged) {
@@ -329,13 +330,15 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     longitud: String(record.longitude),
                     speed: String(record.speed),
                     imei: imei,
-                    din1: record.din1,
-                    din2: record.din2,
-                    dout1: record.dout1,
-                    ain1: record.ain1,
-                    ignition: record.ignition,
-                    externalVoltage: finalExternalVoltage,
-                    batteryVoltage: finalBatteryVoltage,
+                    metadata: {
+                        din1: record.din1,
+                        din2: record.din2,
+                        dout1: record.dout1,
+                        ain1: record.ain1,
+                        ignition: record.ignition,
+                        externalVoltage: finalExternalVoltage,
+                        batteryVoltage: finalBatteryVoltage,
+                    },
                     recordedAt: record.timestamp,
                 },
             });
@@ -418,13 +421,14 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
         if (lasTelemetry) {
             const isLocationIdentical = lasTelemetry.latitud === String(body.latitude) && lasTelemetry.longitud === String(body.longitude);
             
-            const lastVoltage = lasTelemetry.externalVoltage !== null ? Number(lasTelemetry.externalVoltage) : 0;
+            const lastMetadata = (lasTelemetry.metadata as Record<string, any>) || {};
+            const lastVoltage = lastMetadata.externalVoltage !== undefined && lastMetadata.externalVoltage !== null ? Number(lastMetadata.externalVoltage) : 0;
             const wasOnExternalPower = lastVoltage > 5;
             const isExternalPowerLost = (body.externalVoltage === 0 || body.externalVoltage === null) && wasOnExternalPower;
 
             const hasStateChanged = 
                 lasTelemetry.speed !== String(body.speed) ||
-                lasTelemetry.ignition !== body.ignition ||
+                lastMetadata.ignition !== body.ignition ||
                 isExternalPowerLost;
 
             if (isLocationIdentical && !hasStateChanged) {
@@ -439,7 +443,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             }
 
             // Evitar registros duplicados consecutivos con ignición 0
-            /*if (lasTelemetry.ignition === 0 && body.ignition === 0) {
+            /*if (lastMetadata.ignition === 0 && body.ignition === 0) {
                 this.logger.warn(`Vehículo ya estaba apagado (REST). Omitiendo reporte.`);
                 return null;
             }*/
@@ -456,13 +460,15 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                     longitud: String(body.longitude),
                     speed: String(body.speed),
                     imei: body.imei,
-                    din1: body.din1 !== undefined && body.din1 !== null ? body.din1 : body.ignition,
-                    din2: body.din2 !== undefined && body.din2 !== null ? body.din2 : 0,
-                    dout1: body.dout1 !== undefined && body.dout1 !== null ? body.dout1 : 0,
-                    ain1: body.ain1 !== undefined && body.ain1 !== null ? body.ain1 : 0,
-                    ignition: body.ignition,
-                    externalVoltage: finalExternalVoltage,
-                    batteryVoltage: finalBatteryVoltage,
+                    metadata: {
+                        din1: body.din1 !== undefined && body.din1 !== null ? body.din1 : body.ignition,
+                        din2: body.din2 !== undefined && body.din2 !== null ? body.din2 : 0,
+                        dout1: body.dout1 !== undefined && body.dout1 !== null ? body.dout1 : 0,
+                        ain1: body.ain1 !== undefined && body.ain1 !== null ? body.ain1 : 0,
+                        ignition: body.ignition,
+                        externalVoltage: finalExternalVoltage,
+                        batteryVoltage: finalBatteryVoltage,
+                    },
                     recordedAt: body.timestamp ? new Date(body.timestamp) : new Date(),
                 },
             });

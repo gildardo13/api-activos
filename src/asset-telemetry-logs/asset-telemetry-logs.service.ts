@@ -49,11 +49,12 @@ export class AssetTelemetryLogsService {
     if (lasTelemetry) {
       const isLocationIdentical = lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud;
       
-      const lastVoltage = lasTelemetry.externalVoltage !== null ? Number(lasTelemetry.externalVoltage) : 0;
+      const metadata = (lasTelemetry.metadata as Record<string, any>) || {};
+      const lastVoltage = metadata.externalVoltage !== undefined && metadata.externalVoltage !== null ? Number(metadata.externalVoltage) : 0;
       const wasOnExternalPower = lastVoltage > 5;
       const isExternalPowerLost = (dto.externalVoltage === 0 || dto.externalVoltage === null) && wasOnExternalPower;
 
-      const hasStateChanged = lasTelemetry.ignition !== dto.ignition || isExternalPowerLost;
+      const hasStateChanged = metadata.ignition !== dto.ignition || isExternalPowerLost;
 
       if (isLocationIdentical && !hasStateChanged) {
         throw new BadRequestException('Las coordenadas y estados son idénticas a la última telemetría registrada.');
@@ -77,13 +78,15 @@ export class AssetTelemetryLogsService {
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
-          din1: dto.din1 !== undefined && dto.din1 !== null ? dto.din1 : 0,
-          din2: dto.din2 !== undefined && dto.din2 !== null ? dto.din2 : 0,
-          dout1: dto.dout1 !== undefined && dto.dout1 !== null ? dto.dout1 : 0,
-          ain1: dto.ain1 !== undefined && dto.ain1 !== null ? dto.ain1 : 0,
-          ignition: dto.ignition,
-          externalVoltage: finalExternalVoltage,
-          batteryVoltage: finalBatteryVoltage,
+          metadata: {
+            din1: dto.din1 !== undefined && dto.din1 !== null ? dto.din1 : 0,
+            din2: dto.din2 !== undefined && dto.din2 !== null ? dto.din2 : 0,
+            dout1: dto.dout1 !== undefined && dto.dout1 !== null ? dto.dout1 : 0,
+            ain1: dto.ain1 !== undefined && dto.ain1 !== null ? dto.ain1 : 0,
+            ignition: dto.ignition !== undefined && dto.ignition !== null ? dto.ignition : null,
+            externalVoltage: finalExternalVoltage,
+            batteryVoltage: finalBatteryVoltage,
+          },
           recordedAt: dto.recordedAt ?? new Date(),
         },
       });
