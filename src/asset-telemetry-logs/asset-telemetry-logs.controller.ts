@@ -15,7 +15,6 @@ import {
 import { AssetTelemetryLogsService } from './asset-telemetry-logs.service';
 import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto';
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
-import { PrismaClient } from '@prisma/client';
 import { QueryAssetTelemetryLogDto } from './dto/query-asset-telemetry-log.dto';
 
 @Controller('asset-telemetry-logs')
@@ -49,6 +48,12 @@ export class AssetTelemetryLogsController {
   @HttpCode(HttpStatus.OK)
   findAllHistoryByAsset(@Param('assetId') assetId: string) {
     return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId);
+  }
+
+  @Get('/getAll-inactive-telemetry-logs-by-asset/:assetId')
+  @HttpCode(HttpStatus.OK)
+  findAllInactiveHistoryByAsset(@Param('assetId') assetId: string) {
+    return this.assetTelemetryLogsService.findAllInactiveHistoryByAsset(assetId);
   }
 
 

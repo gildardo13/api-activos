@@ -80,6 +80,7 @@ export class AssetTelemetryLogsService {
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
+          isActive: dto.isActive,
           metadata: {
             din1: inputMetadata.din1 !== undefined && inputMetadata.din1 !== null ? inputMetadata.din1 : 0,
             din2: inputMetadata.din2 !== undefined && inputMetadata.din2 !== null ? inputMetadata.din2 : 0,
@@ -118,7 +119,29 @@ export class AssetTelemetryLogsService {
     }
 
     return this.prisma.assetTelemetryLog.findMany({
-      where: { assetId },
+      where: {
+        assetId,
+        isActive: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // 2.1 OBTENER HISTORIAL INACTIVO (Por Asset)
+  async findAllInactiveHistoryByAsset(assetId: string) {
+    const assetExist = await this.prisma.asset.findUnique({
+      where: { id: assetId },
+    });
+
+    if (!assetExist) {
+      throw new BadRequestException('Asset not found');
+    }
+
+    return this.prisma.assetTelemetryLog.findMany({
+      where: {
+        assetId,
+        isActive: false,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

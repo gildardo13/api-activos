@@ -479,12 +479,20 @@ export class AssetAssignmentsService {
             lastLocation: null,
           },
         });
-        await this.prisma.assetTelemetryLog.deleteMany({
+        await this.prisma.assetTelemetryLog.updateMany({
+          where: {
+            assetId: assignment.assetId,
+          },
+          data: {
+            isActive: false,
+          },
+        });
+        /*await this.prisma.assetTelemetryLog.deleteMany({
           where: { assetId: assignment.assetId },
         })
         await this.prisma.assetGeofence.deleteMany({
           where: { assetId: assignment.assetId },
-        })
+        })*/
       }
       returnedAt = new Date();
     } else {
@@ -514,7 +522,7 @@ export class AssetAssignmentsService {
 
         },
       });
-      
+
       return {
         message: 'Assignment updated successfully',
       };

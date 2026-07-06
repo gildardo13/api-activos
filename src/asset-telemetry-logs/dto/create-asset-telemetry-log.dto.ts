@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsDateString, IsInt, IsNumber, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsDateString, IsInt, IsNumber, IsObject, IsOptional, IsString, ValidateNested, IsBoolean, isBoolean } from "class-validator";
 
 export class TelemetryMetadataDto {
     @IsInt()
@@ -50,6 +50,10 @@ export class CreateAssetTelemetryLogDto {
     @ValidateNested()
     @Type(() => TelemetryMetadataDto)
     metadata?: TelemetryMetadataDto;
+
+    @IsOptional()
+    @IsBoolean()
+    isActive?: boolean = true;
 
     @IsDateString()
     recordedAt: Date;
