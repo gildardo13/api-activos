@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Query,
 } from '@nestjs/common';
 
 import { AssetGeofencesService } from './asset-geofences.service';
@@ -34,8 +35,8 @@ export class AssetGeofencesController {
 
   @Get('/getAllAssetGeofences')
   @HttpCode(HttpStatus.OK)
-  findAllGeofences() {
-    return this.assetGeofencesService.findAllGeofences();
+  findAllGeofences(@Query('search') search?: string) {
+    return this.assetGeofencesService.findAllGeofences(search);
   }
 
   @Get('/getAll')
