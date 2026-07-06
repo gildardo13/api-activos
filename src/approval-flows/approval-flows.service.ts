@@ -343,7 +343,8 @@ export class ApprovalFlowsService {
         const assetId = metadata.dto?.assetId || realReferenceId;
         await this.prisma.assetTelemetryLog.deleteMany({
           where: {
-            assetId: assetId,
+            assetId,
+            isActive: true,
           },
         });
         await this.prisma.asset.update({

@@ -80,6 +80,7 @@ export class AssetTelemetryLogsService {
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
+          isActive: dto.isActive,
           metadata: {
             din1: inputMetadata.din1 !== undefined && inputMetadata.din1 !== null ? inputMetadata.din1 : 0,
             din2: inputMetadata.din2 !== undefined && inputMetadata.din2 !== null ? inputMetadata.din2 : 0,
@@ -108,7 +109,8 @@ export class AssetTelemetryLogsService {
   }
 
   // 2. OBTENER HISTORIAL (Por Asset)
-  async findAllHistoryByAsset(assetId: string) {
+  // 2. OBTENER HISTORIAL (Por Asset)
+  async findAllHistoryByAsset(assetId: string, from?: string, to?: string) {
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: assetId },
     });
@@ -117,9 +119,55 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
+    const where: any = {
+      assetId,
+      isActive: true,
+    };
+
+    if (from || to) {
+      where.recordedAt = {};
+      if (from) {
+        where.recordedAt.gte = new Date(from);
+      }
+      if (to) {
+        where.recordedAt.lte = new Date(to);
+      }
+    }
+
     return this.prisma.assetTelemetryLog.findMany({
-      where: { assetId },
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: { recordedAt: 'desc' },
+    });
+  }
+
+  // 2.1 OBTENER HISTORIAL INACTIVO (Por Asset)
+  async findAllInactiveHistoryByAsset(assetId: string, from?: string, to?: string) {
+    const assetExist = await this.prisma.asset.findUnique({
+      where: { id: assetId },
+    });
+
+    if (!assetExist) {
+      throw new BadRequestException('Asset not found');
+    }
+
+    const where: any = {
+      assetId,
+      isActive: false,
+    };
+
+    if (from || to) {
+      where.recordedAt = {};
+      if (from) {
+        where.recordedAt.gte = new Date(from);
+      }
+      if (to) {
+        where.recordedAt.lte = new Date(to);
+      }
+    }
+
+    return this.prisma.assetTelemetryLog.findMany({
+      where,
+      orderBy: { recordedAt: 'desc' },
     });
   }
 
@@ -142,33 +190,44 @@ export class AssetTelemetryLogsService {
   }
 
   // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
-  async findAllLatest() {
+  async findAllLatest(search?: string) {
+    const whereAndClause: any[] = [
+      { lastLocation: { not: null } },
+      { lastLocation: { not: "" } },
+
+      // Regla 1 CORREGIDA: Permite nulos y estados diferentes a PENDING
+      {
+        OR: [
+          { statusApproval: { not: 'PENDING' } },
+          { statusApproval: null }
+        ]
+      },
+
+      // Regla 2: (Se mantiene igual por ahora)
+      {
+        assetAssignments: {
+          none: {
+            statusApproval: {
+              in: ['PENDING']
+            }
+          }
+        }
+      }
+    ];
+
+    if (search) {
+      whereAndClause.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
     // 1. Obtenemos los assets aplicando las reglas de exclusión desde la BD
     const listAsset = await this.prisma.asset.findMany({
       where: {
-        AND: [
-          { lastLocation: { not: null } },
-          { lastLocation: { not: "" } },
-
-          // Regla 1 CORREGIDA: Permite nulos y estados diferentes a PENDING
-          {
-            OR: [
-              { statusApproval: { not: 'PENDING' } },
-              { statusApproval: null }
-            ]
-          },
-
-          // Regla 2: (Se mantiene igual por ahora)
-          {
-            assetAssignments: {
-              none: {
-                statusApproval: {
-                  in: ['PENDING']
-                }
-              }
-            }
-          }
-        ]
+        AND: whereAndClause
       },
       include: {
         assetType: true
@@ -295,6 +354,18 @@ export class AssetTelemetryLogsService {
   async findAllQuery(query: QueryAssetTelemetryLogDto) {
     const where: any = {};
 
+    if (query.assetId) {
+      where.assetId = query.assetId;
+    }
+
+    if (query.isActive !== undefined) {
+      if (query.isActive === 'true') {
+        where.isActive = true;
+      } else if (query.isActive === 'false') {
+        where.isActive = false;
+      }
+    }
+
     if (query.searchName) {
       where.asset = {
         name: {
@@ -306,6 +377,7 @@ export class AssetTelemetryLogsService {
 
     if (query.searchJibbyId) {
       where.asset = {
+        ...where.asset,
         assetType: {
           categoryId: {
             path: ['id'],

@@ -85,17 +85,27 @@ export class AssetGeofencesService {
     });
   }
 
-  async findAllGeofences() {
-    return this.prisma.assetGeofence.findMany({
-      // 1. Agregamos la condición anidada
-      where: {
-        asset: {
-          assetType: {
-            clasificationType: 'INMOVABLE',
-          },
+  async findAllGeofences(search?: string) {
+    const where: any = {
+      asset: {
+        assetType: {
+          clasificationType: 'INMOVABLE',
         },
       },
-      // 2. Mantenemos tus includes y selecciones intactos
+    };
+
+    if (search) {
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+      ];
+    }
+
+    return this.prisma.assetGeofence.findMany({
+      where,
       include: {
         asset: {
           select: {
