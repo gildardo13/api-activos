@@ -40,8 +40,8 @@ export class AssetTelemetryLogsController {
 
   @Get('/getall-latest-telemetry-logs')
   @HttpCode(HttpStatus.OK)
-  findAllLatest() {
-    return this.assetTelemetryLogsService.findAllLatest();
+  findAllLatest(@Query('search') search?: string) {
+    return this.assetTelemetryLogsService.findAllLatest(search);
   }
 
   @Get('/getAll-telemetry-logs-by-asset/:assetId')

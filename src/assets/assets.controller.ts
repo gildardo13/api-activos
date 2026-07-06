@@ -62,8 +62,8 @@ export class AssetsController {
 
   @Get('/without-location-inactive-telemetry')
   @HttpCode(HttpStatus.OK)
-  findWithoutLocationInactiveTelemetry() {
-    return this.assetsService.findWithoutLocationInactiveTelemetry();
+  findWithoutLocationInactiveTelemetry(@Query('search') search?: string) {
+    return this.assetsService.findWithoutLocationInactiveTelemetry(search);
   }
 
   @Get('/find-all-no-query-notAssigment')

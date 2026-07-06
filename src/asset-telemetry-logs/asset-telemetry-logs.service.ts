@@ -190,33 +190,44 @@ export class AssetTelemetryLogsService {
   }
 
   // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
-  async findAllLatest() {
+  async findAllLatest(search?: string) {
+    const whereAndClause: any[] = [
+      { lastLocation: { not: null } },
+      { lastLocation: { not: "" } },
+
+      // Regla 1 CORREGIDA: Permite nulos y estados diferentes a PENDING
+      {
+        OR: [
+          { statusApproval: { not: 'PENDING' } },
+          { statusApproval: null }
+        ]
+      },
+
+      // Regla 2: (Se mantiene igual por ahora)
+      {
+        assetAssignments: {
+          none: {
+            statusApproval: {
+              in: ['PENDING']
+            }
+          }
+        }
+      }
+    ];
+
+    if (search) {
+      whereAndClause.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
     // 1. Obtenemos los assets aplicando las reglas de exclusión desde la BD
     const listAsset = await this.prisma.asset.findMany({
       where: {
-        AND: [
-          { lastLocation: { not: null } },
-          { lastLocation: { not: "" } },
-
-          // Regla 1 CORREGIDA: Permite nulos y estados diferentes a PENDING
-          {
-            OR: [
-              { statusApproval: { not: 'PENDING' } },
-              { statusApproval: null }
-            ]
-          },
-
-          // Regla 2: (Se mantiene igual por ahora)
-          {
-            assetAssignments: {
-              none: {
-                statusApproval: {
-                  in: ['PENDING']
-                }
-              }
-            }
-          }
-        ]
+        AND: whereAndClause
       },
       include: {
         assetType: true
