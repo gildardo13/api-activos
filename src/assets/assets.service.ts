@@ -297,6 +297,38 @@ export class AssetsService {
     return { data, meta: { total: data.length } };
   }
 
+  async findWithoutLocationInactiveTelemetry() {
+    const data = await this.prisma.asset.findMany({
+      where: {
+        OR: [
+          { lastLocation: null },
+          { lastLocation: '' },
+        ],
+        assetTelemetryLogs: {
+          some: {
+            isActive: false,
+          },
+        },
+      },
+      include: {
+        assetType: true,
+        assetTelemetryLogs: {
+          where: {
+            isActive: false,
+          },
+        },
+        assetDocuments: true,
+        assetGeofences: true,
+        assetAssignments: true,
+        gpsDevice: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  }
+
   async findAllNoQuerynotAssigment() {
     const data = await this.prisma.asset.findMany({
       where: {

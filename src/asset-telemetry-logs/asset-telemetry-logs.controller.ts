@@ -46,14 +46,22 @@ export class AssetTelemetryLogsController {
 
   @Get('/getAll-telemetry-logs-by-asset/:assetId')
   @HttpCode(HttpStatus.OK)
-  findAllHistoryByAsset(@Param('assetId') assetId: string) {
-    return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId);
+  findAllHistoryByAsset(
+    @Param('assetId') assetId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId, from, to);
   }
 
   @Get('/getAll-inactive-telemetry-logs-by-asset/:assetId')
   @HttpCode(HttpStatus.OK)
-  findAllInactiveHistoryByAsset(@Param('assetId') assetId: string) {
-    return this.assetTelemetryLogsService.findAllInactiveHistoryByAsset(assetId);
+  findAllInactiveHistoryByAsset(
+    @Param('assetId') assetId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.assetTelemetryLogsService.findAllInactiveHistoryByAsset(assetId, from, to);
   }
 
 

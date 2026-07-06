@@ -109,7 +109,8 @@ export class AssetTelemetryLogsService {
   }
 
   // 2. OBTENER HISTORIAL (Por Asset)
-  async findAllHistoryByAsset(assetId: string) {
+  // 2. OBTENER HISTORIAL (Por Asset)
+  async findAllHistoryByAsset(assetId: string, from?: string, to?: string) {
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: assetId },
     });
@@ -118,17 +119,29 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
+    const where: any = {
+      assetId,
+      isActive: true,
+    };
+
+    if (from || to) {
+      where.recordedAt = {};
+      if (from) {
+        where.recordedAt.gte = new Date(from);
+      }
+      if (to) {
+        where.recordedAt.lte = new Date(to);
+      }
+    }
+
     return this.prisma.assetTelemetryLog.findMany({
-      where: {
-        assetId,
-        isActive: true,
-      },
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: { recordedAt: 'desc' },
     });
   }
 
   // 2.1 OBTENER HISTORIAL INACTIVO (Por Asset)
-  async findAllInactiveHistoryByAsset(assetId: string) {
+  async findAllInactiveHistoryByAsset(assetId: string, from?: string, to?: string) {
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: assetId },
     });
@@ -137,12 +150,24 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
+    const where: any = {
+      assetId,
+      isActive: false,
+    };
+
+    if (from || to) {
+      where.recordedAt = {};
+      if (from) {
+        where.recordedAt.gte = new Date(from);
+      }
+      if (to) {
+        where.recordedAt.lte = new Date(to);
+      }
+    }
+
     return this.prisma.assetTelemetryLog.findMany({
-      where: {
-        assetId,
-        isActive: false,
-      },
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: { recordedAt: 'desc' },
     });
   }
 
@@ -318,6 +343,18 @@ export class AssetTelemetryLogsService {
   async findAllQuery(query: QueryAssetTelemetryLogDto) {
     const where: any = {};
 
+    if (query.assetId) {
+      where.assetId = query.assetId;
+    }
+
+    if (query.isActive !== undefined) {
+      if (query.isActive === 'true') {
+        where.isActive = true;
+      } else if (query.isActive === 'false') {
+        where.isActive = false;
+      }
+    }
+
     if (query.searchName) {
       where.asset = {
         name: {
@@ -329,6 +366,7 @@ export class AssetTelemetryLogsService {
 
     if (query.searchJibbyId) {
       where.asset = {
+        ...where.asset,
         assetType: {
           categoryId: {
             path: ['id'],
