@@ -55,7 +55,18 @@ export class AssetTelemetryLogsService {
       const inputMetadata = dto.metadata || {};
       const isExternalPowerLost = (inputMetadata.externalVoltage === 0 || inputMetadata.externalVoltage === null || inputMetadata.externalVoltage === undefined) && wasOnExternalPower;
 
-      const hasStateChanged = lastMetadata.ignition !== inputMetadata.ignition || isExternalPowerLost;
+      const resolvedDin1 = inputMetadata.din1 !== undefined && inputMetadata.din1 !== null ? inputMetadata.din1 : 0;
+      const resolvedDin2 = inputMetadata.din2 !== undefined && inputMetadata.din2 !== null ? inputMetadata.din2 : 0;
+      const resolvedDout1 = inputMetadata.dout1 !== undefined && inputMetadata.dout1 !== null ? inputMetadata.dout1 : 0;
+      const resolvedAin1 = inputMetadata.ain1 !== undefined && inputMetadata.ain1 !== null ? inputMetadata.ain1 : 0;
+
+      const hasStateChanged = 
+        lastMetadata.ignition !== inputMetadata.ignition ||
+        lastMetadata.din1 !== resolvedDin1 ||
+        lastMetadata.din2 !== resolvedDin2 ||
+        lastMetadata.ain1 !== resolvedAin1 ||
+        lastMetadata.dout1 !== resolvedDout1 ||
+        isExternalPowerLost;
 
       if (isLocationIdentical && !hasStateChanged) {
         throw new BadRequestException('Las coordenadas y estados son idénticas a la última telemetría registrada.');
@@ -63,7 +74,7 @@ export class AssetTelemetryLogsService {
 
       //.APAGADO.
       const isStillOff = lastVoltage <= 5 && (inputMetadata.externalVoltage === 0 || inputMetadata.externalVoltage === null || inputMetadata.externalVoltage === undefined);
-      if (isStillOff) {
+      if (isStillOff && !hasStateChanged) {
         throw new BadRequestException('El vehículo ya estaba apagado. Telemetría omitida.');
       }
     }
