@@ -266,7 +266,13 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             const wasOnExternalPower = lastVoltage > 5;
             const isExternalPowerLost = (record.externalVoltage === 0 || record.externalVoltage === null) && wasOnExternalPower;
 
-            const hasStateChanged = lastMetadata.ignition !== record.ignition || isExternalPowerLost;
+            const hasStateChanged = 
+                lastMetadata.ignition !== record.ignition ||
+                lastMetadata.din1 !== record.din1 ||
+                lastMetadata.din2 !== record.din2 ||
+                lastMetadata.ain1 !== record.ain1 ||
+                lastMetadata.dout1 !== record.dout1 ||
+                isExternalPowerLost;
 
 
             if (isLocationIdentical && !hasStateChanged) {
@@ -277,7 +283,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
           
             //.APAGADO
             const isStillOff = lastVoltage <= 5 && (record.externalVoltage === 0 || record.externalVoltage === null);
-            if (isStillOff) {
+            if (isStillOff && !hasStateChanged) {
                 this.logger.warn(`[TCP GPS] Vehículo ya estaba apagado (IMEI: ${imei}). Omitiendo reporte.`);
                 this.logToFile(`[TCP GPS] WARN [${imei}]: Vehículo ya estaba apagado. Omitiendo reporte.`);
                 return;
@@ -426,9 +432,18 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             const wasOnExternalPower = lastVoltage > 5;
             const isExternalPowerLost = (body.externalVoltage === 0 || body.externalVoltage === null) && wasOnExternalPower;
 
+            const resolvedDin1 = body.din1 !== undefined && body.din1 !== null ? body.din1 : body.ignition;
+            const resolvedDin2 = body.din2 !== undefined && body.din2 !== null ? body.din2 : 0;
+            const resolvedDout1 = body.dout1 !== undefined && body.dout1 !== null ? body.dout1 : 0;
+            const resolvedAin1 = body.ain1 !== undefined && body.ain1 !== null ? body.ain1 : 0;
+
             const hasStateChanged = 
                 lasTelemetry.speed !== String(body.speed) ||
                 lastMetadata.ignition !== body.ignition ||
+                lastMetadata.din1 !== resolvedDin1 ||
+                lastMetadata.din2 !== resolvedDin2 ||
+                lastMetadata.ain1 !== resolvedAin1 ||
+                lastMetadata.dout1 !== resolvedDout1 ||
                 isExternalPowerLost;
 
             if (isLocationIdentical && !hasStateChanged) {
@@ -437,7 +452,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             }
             //.APAGADO
             const isStillOff = lastVoltage <= 5 && (body.externalVoltage === 0 || body.externalVoltage === null);
-            if (isStillOff) {
+            if (isStillOff && !hasStateChanged) {
                 this.logger.warn(`Vehículo ya estaba apagado (REST). Omitiendo reporte.`);
                 return null;
             }
