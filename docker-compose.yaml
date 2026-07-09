@@ -1,0 +1,21 @@
+version: '3.8'
+
+
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx_server
+    restart: always
+    ports:
+      - "8554:8554" 
+      - "1935:1935"
+      - "8888:8888"
+      - "8889:8889"
+      - "8189:8189/udp"
+      - "9997:9997" 
+      # - "127.0.0.1:9997:9997" 
+    environment:
+      MTX_API: "yes"
+      MTX_AUTHINTERNALUSERS_0_USER: "admin_media"
+      MTX_AUTHINTERNALUSERS_0_PASS: "adminMultimedia123"
+      MTX_AUTHINTERNALUSERS_0_PERMISSIONS_0_ACTION: "api"
