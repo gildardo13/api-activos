@@ -7,6 +7,13 @@ export interface AvlRecord {
   angle: number;
   satellites: number;
   speed: number;
+  din1?: number | null;
+  din2?: number | null;
+  dout1?: number | null;
+  ain1?: number | null;
+  ignition?: number | null;
+  externalVoltage?: number | null;
+  batteryVoltage?: number | null;
 }
 
 export interface ParsedAvlData {
@@ -100,7 +107,16 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
     const speed = buffer.readUInt16BE(offset);
     offset += 2;
 
-    // Parseo de I/O Elements (para avanzar el offset correctamente)
+    let din1: number | null = null;
+    let din2: number | null = null;
+    let dout1: number | null = null;
+    let ain1: number | null = null;
+    let ignition: number | null = null;
+    let externalVoltage: number | null = null;
+    let batteryVoltage: number | null = null;
+
+
+    // Parseo de I/O Elements
     if (codecId === 0x08) {
       // Codec 8 I/O elements
       if (offset + 2 > buffer.length) break;
@@ -113,13 +129,30 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
       if (offset + 1 > buffer.length) break;
       const m1Count = buffer.readUInt8(offset);
       offset += 1;
-      offset += m1Count * 2; // Cada uno: 1 byte ID + 1 byte valor
+      for (let j = 0; j < m1Count; j++) {
+        if (offset + 2 > buffer.length) break;
+        const id = buffer.readUInt8(offset);
+        const val = buffer.readUInt8(offset + 1);
+        offset += 2;
+        if (id === 1) din1 = val;
+        else if (id === 2) din2 = val;
+        else if (id === 179) dout1 = val;
+        else if (id === 239) ignition = val;
+      }
 
       // M2 (2 bytes IO)
       if (offset + 1 > buffer.length) break;
       const m2Count = buffer.readUInt8(offset);
       offset += 1;
-      offset += m2Count * 3; // Cada uno: 1 byte ID + 2 bytes valor
+      for (let j = 0; j < m2Count; j++) {
+        if (offset + 3 > buffer.length) break;
+        const id = buffer.readUInt8(offset);
+        const val = buffer.readUInt16BE(offset + 1);
+        offset += 3;
+        if (id === 9) ain1 = val;
+        else if (id === 66) externalVoltage = val;
+        else if (id === 67 || id === 113) batteryVoltage = val;
+      }
 
       // M4 (4 bytes IO)
       if (offset + 1 > buffer.length) break;
@@ -145,13 +178,30 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
       if (offset + 2 > buffer.length) break;
       const m1Count = buffer.readUInt16BE(offset);
       offset += 2;
-      offset += m1Count * 3; // Cada uno: 2 bytes ID + 1 byte valor
+      for (let j = 0; j < m1Count; j++) {
+        if (offset + 3 > buffer.length) break;
+        const id = buffer.readUInt16BE(offset);
+        const val = buffer.readUInt8(offset + 2);
+        offset += 3;
+        if (id === 1) din1 = val;
+        else if (id === 2) din2 = val;
+        else if (id === 179) dout1 = val;
+        else if (id === 239) ignition = val;
+      }
 
       // M2 (2 bytes IO)
       if (offset + 2 > buffer.length) break;
       const m2Count = buffer.readUInt16BE(offset);
       offset += 2;
-      offset += m2Count * 4; // Cada uno: 2 bytes ID + 2 bytes valor
+      for (let j = 0; j < m2Count; j++) {
+        if (offset + 4 > buffer.length) break;
+        const id = buffer.readUInt16BE(offset);
+        const val = buffer.readUInt16BE(offset + 2);
+        offset += 4;
+        if (id === 9) ain1 = val;
+        else if (id === 66) externalVoltage = val;
+        else if (id === 67 || id === 113) batteryVoltage = val;
+      }
 
       // M4 (4 bytes IO)
       if (offset + 2 > buffer.length) break;
@@ -188,6 +238,13 @@ export function parseAvlData(buffer: Buffer): ParsedAvlData | null {
       angle,
       satellites,
       speed,
+      din1: din1 !== null && din1 !== undefined ? din1 : 0,
+      din2: din2 !== null && din2 !== undefined ? din2 : 0,
+      dout1: dout1 !== null && dout1 !== undefined ? dout1 : 0,
+      ain1: ain1 !== null && ain1 !== undefined ? ain1 : 0,
+      ignition,
+      externalVoltage,
+      batteryVoltage,
     });
   }
 

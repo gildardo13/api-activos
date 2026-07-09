@@ -100,33 +100,53 @@ export class AssetAssignmentsService {
       ];
     }
 
-    // ── Consulta en Paralelo (Paginación y Conteo) ──────────
-    const [total, items] = await Promise.all([
-      this.prisma.assetAssignment.count({
-        where,
-      }),
+    // 1. Obtener información básica para ordenar en memoria
+    const allMatching = await this.prisma.assetAssignment.findMany({
+      where,
+      select: {
+        id: true,
+        statusReturned: true,
+        createdAt: true,
+      },
+    });
 
-      this.prisma.assetAssignment.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          asset: true,
-          project: true,
-        },
-        orderBy: [
-          {
-            statusReturned: { sort: 'desc', nulls: 'first' }, // Empuja PENDING e IN_USE al final
-          },
-          {
-            createdAt: sortByDate, // Sub-ordenamiento por fecha
-          },
-          {
-            id: 'asc', // Estabilizador de paginación
-          },
-        ],
-      }),
-    ]);
+    // 2. Ordenar en memoria: PENDING (1), null / IN_USE (2), RETURNED (3)
+    allMatching.sort((a, b) => {
+      const getScore = (status: string | null) => {
+        if (status === 'PENDING') return 1;
+        if (status === 'IN_USE' || status === null) return 2;
+        if (status === 'RETURNED') return 3;
+        return 2;
+      };
+      const scoreA = getScore(a.statusReturned);
+      const scoreB = getScore(b.statusReturned);
+
+      if (scoreA !== scoreB) {
+        return scoreA - scoreB;
+      }
+
+      const tA = new Date(a.createdAt).getTime();
+      const tB = new Date(b.createdAt).getTime();
+      return sortByDate === 'desc' ? tB - tA : tA - tB;
+    });
+
+    const total = allMatching.length;
+    const pageIds = allMatching.slice(skip, skip + limit).map((x) => x.id);
+
+    // 3. Traer los objetos completos correspondientes a la página actual
+    const items = await this.prisma.assetAssignment.findMany({
+      where: {
+        id: { in: pageIds },
+      },
+      include: {
+        asset: true,
+        project: true,
+      },
+    });
+
+    // 4. Mantener el orden calculado
+    items.sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id));
+
     return {
       data: items,
       meta: {
@@ -374,35 +394,52 @@ export class AssetAssignmentsService {
       }
     }
 
-    // Ejecutamos la consulta en la Base de Datos Local de Activos
-    const [total, items] = await Promise.all([
-      this.prisma.assetAssignment.count({
-        where,
-      }),
+    // 1. Obtener información básica para ordenar en memoria
+    const allMatching = await this.prisma.assetAssignment.findMany({
+      where,
+      select: {
+        id: true,
+        statusReturned: true,
+        createdAt: true,
+      },
+    });
 
-      this.prisma.assetAssignment.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          asset: true,
-          project: true,
-        },
-        orderBy: [
-          {
-            // 1. Mandamos los campos sin estado (nulls) al principio
-            // 2. Al ser 'desc', el orden alfabético empuja la 'I' al fondo (R -> P -> I)
-            statusReturned: { sort: 'desc', nulls: 'first' },
-          },
-          {
-            createdAt: sortByDate, // Sub-ordenamiento por fecha
-          },
-          {
-            id: 'asc', // 🔴 EL TRUCO: Identificador único obligatorio para estabilizar la paginación
-          },
-        ],
-      }),
-    ]);
+    // 2. Ordenar en memoria: PENDING (1), null / IN_USE (2), RETURNED (3)
+    allMatching.sort((a, b) => {
+      const getScore = (status: string | null) => {
+        if (status === 'PENDING') return 1;
+        if (status === 'IN_USE' || status === null) return 2;
+        if (status === 'RETURNED') return 3;
+        return 2;
+      };
+      const scoreA = getScore(a.statusReturned);
+      const scoreB = getScore(b.statusReturned);
+
+      if (scoreA !== scoreB) {
+        return scoreA - scoreB;
+      }
+
+      const tA = new Date(a.createdAt).getTime();
+      const tB = new Date(b.createdAt).getTime();
+      return sortByDate === 'desc' ? tB - tA : tA - tB;
+    });
+
+    const total = allMatching.length;
+    const pageIds = allMatching.slice(skip, skip + limit).map((x) => x.id);
+
+    // 3. Traer los objetos completos correspondientes a la página actual
+    const items = await this.prisma.assetAssignment.findMany({
+      where: {
+        id: { in: pageIds },
+      },
+      include: {
+        asset: true,
+        project: true,
+      },
+    });
+
+    // 4. Mantener el orden calculado
+    items.sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id));
 
     return {
       data: items,
@@ -442,12 +479,20 @@ export class AssetAssignmentsService {
             lastLocation: null,
           },
         });
-        await this.prisma.assetTelemetryLog.deleteMany({
+        await this.prisma.assetTelemetryLog.updateMany({
+          where: {
+            assetId: assignment.assetId,
+          },
+          data: {
+            isActive: false,
+          },
+        });
+        /*await this.prisma.assetTelemetryLog.deleteMany({
           where: { assetId: assignment.assetId },
         })
         await this.prisma.assetGeofence.deleteMany({
           where: { assetId: assignment.assetId },
-        })
+        })*/
       }
       returnedAt = new Date();
     } else {
@@ -477,7 +522,7 @@ export class AssetAssignmentsService {
 
         },
       });
-      
+
       return {
         message: 'Assignment updated successfully',
       };

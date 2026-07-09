@@ -116,6 +116,28 @@ export class ApprovalFlowsService {
     }
   }
 
+  async getWorkflowidRequest(moduleId: string, id: string, idAction: string): Promise<any[]> {
+    try {
+      const query = new URLSearchParams();
+      query.append("action", idAction)
+      const res = await this.workflowApi().get<any>(`approval/request/${moduleId}/id/${id}?${query.toString()}`, {
+        headers: this.buildHeaders(),
+      });
+
+      return res.data;
+    } catch (err: any) {
+      console.log('STATUS:', err.response?.status);
+      console.log('DATA:', err.response?.data);
+      console.log('URL:', err.config?.baseURL + err.config?.url);
+      console.log('METHOD:', err.config?.method);
+      this.logger.error(`getWorkflow error: ${err.message}`);
+      throw new HttpException(
+        'Error al obtener workflows',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
 
 
   async createSolicitud(request: CreateSolicitudDto, moduleId: string) {
@@ -220,7 +242,7 @@ export class ApprovalFlowsService {
   async updateStatus(request: any) {
     try {
 
-       if (request.moduleAction.key === 'ASSIGNMENT') {
+      if (request.moduleAction.key === 'ASSIGNMENT') {
         this.assetAssignmentsService.approvalStatus(request.clientReferenceId, request.status.toUpperCase())
       }
 
@@ -238,42 +260,60 @@ export class ApprovalFlowsService {
 
 
   async verificarAction(id: string, moduleId, data: any) {
-    // const data = await this.getWorkflowByIdClientReference(id, moduleId);
     const approvedStep = data.steps.find(
       (step) => step.order === data.steps.length
     );
     const approvedComment = approvedStep?.comments ?? null;
     if (data) {
-      if (data.moduleAction.key === "UPDATE") {
-        const dto = { ...data.metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
-        await this.assetsService.update(data.clientReferenceId, dto,)
-        await this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment)
-        const dtoGeocerca = data.metadata.dtoGeofence;
-        if (dtoGeocerca.name) {
-          if (dtoGeocerca.idExiting) {
-            this.geocercaService.update(dtoGeocerca.idExiting, {
-              name: dtoGeocerca.name,
-              coordinates: dtoGeocerca.coordinates,
-            })
-          } else {
-            this.geocercaService.create({
-              assetId: data.clientReferenceId,
-              name: dtoGeocerca.name,
-              coordinates: dtoGeocerca.coordinates,
-              status: dtoGeocerca.status
-            })
-          }
+      const approvalBody = await this.prisma.approvalFlowBody.findUnique({
+        where: { id: data.clientReferenceId },
+      });
 
+      if (!approvalBody) {
+        this.logger.warn(`No se encontró el ApprovalFlowBody con id ${data.clientReferenceId}`);
+        return;
+      }
+
+      const metadata: any = approvalBody.metadata || {};
+      const realReferenceId = approvalBody.idReference;
+
+      if (approvalBody.typeAction === "UPDATE") {
+        const dto = { ...metadata.dtoAsset, statusApproval: StatusApproval.APPROVED } as UpdateAssetDto;
+        await this.assetsService.update(realReferenceId, dto);
+        await this.assetsService.updateStatuApproval(realReferenceId, StatusApproval.APPROVED, approvedComment);
+
+        const dtoGeocerca = metadata.dtoGeofence;
+        if (dtoGeocerca && dtoGeocerca.name) {
+          if (dtoGeocerca.idExiting) {
+            await this.geocercaService.update(dtoGeocerca.idExiting, {
+              name: dtoGeocerca.name,
+              coordinates: dtoGeocerca.coordinates,
+            });
+          } else {
+            await this.geocercaService.create({
+              assetId: realReferenceId,
+              name: dtoGeocerca.name,
+              coordinates: dtoGeocerca.coordinates,
+              status: dtoGeocerca.status,
+            });
+          }
         }
       }
-      else if (data.moduleAction.key === "ASSIGNMENT") {
-        await this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
+      else if (approvalBody.typeAction === "ASSIGNMENT") {
+        await this.assetAssignmentsService.approvalStatus(realReferenceId, StatusApproval.APPROVED, approvedComment);
       }
-      if (data.moduleAction.key === "CHANGES") {
-        await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.APPROVED, approvedComment);
-        await this.assetDocumentsService.update(data.clientReferenceId, data.metadata.dtoDocument);
+      else if (approvalBody.typeAction === "CHANGES") {
+        await this.assetDocumentsService.updateStatuApproval(realReferenceId, StatusApproval.APPROVED, approvedComment);
+        await this.assetDocumentsService.update(realReferenceId, metadata.dtoDocument);
+      }
 
-      }
+      await this.prisma.approvalFlowBody.update({
+        where: { id: approvalBody.id },
+        data: {
+          statusApproval: 'APPROVED',
+          commentsApproval: approvedComment,
+        },
+      });
     }
   }
 
@@ -283,33 +323,48 @@ export class ApprovalFlowsService {
     );
     const rejectionComment = rejectedStep?.comments ?? null;
     if (data) {
-      if (data.moduleAction.key === "UPDATE") {
-        this.assetsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
+      const approvalBody = await this.prisma.approvalFlowBody.findUnique({
+        where: { id: data.clientReferenceId },
+      });
+
+      if (!approvalBody) {
+        this.logger.warn(`No se encontró el ApprovalFlowBody con id ${data.clientReferenceId}`);
+        return;
       }
-      else if (data.moduleAction.key === "ASSIGNMENT") {
-        this.assetAssignmentsService.approvalStatus(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment, true)
-        const d = await this.prisma.assetTelemetryLog.deleteMany({
+
+      const metadata: any = approvalBody.metadata || {};
+      const realReferenceId = approvalBody.idReference;
+
+      if (approvalBody.typeAction === "UPDATE") {
+        await this.assetsService.updateStatuApproval(realReferenceId, StatusApproval.REJECTED, rejectionComment);
+      }
+      else if (approvalBody.typeAction === "ASSIGNMENT") {
+        await this.assetAssignmentsService.approvalStatus(realReferenceId, StatusApproval.REJECTED, rejectionComment, true);
+        const assetId = metadata.dto?.assetId || realReferenceId;
+        await this.prisma.assetTelemetryLog.deleteMany({
           where: {
-            assetId: data.metadata.dto.assetId || data.clientReferenceId,
+            assetId,
+            isActive: true,
           },
         });
         await this.prisma.asset.update({
-          where: { id: data.metadata.dto.assetId },
+          where: { id: assetId },
           data: {
             lastLocation: null,
           },
         });
-
-        await this.prisma.assetTelemetryLog.findMany({
-          where: {
-            assetId: data.metadata.dto.assetId,
-          },
-        });
       }
-      else if (data.moduleAction.key === "CHANGES") {
-        await this.assetDocumentsService.updateStatuApproval(data.clientReferenceId, StatusApproval.REJECTED, rejectionComment);
+      else if (approvalBody.typeAction === "CHANGES") {
+        await this.assetDocumentsService.updateStatuApproval(realReferenceId, StatusApproval.REJECTED, rejectionComment);
       }
 
+      await this.prisma.approvalFlowBody.update({
+        where: { id: approvalBody.id },
+        data: {
+          statusApproval: 'REJECTED',
+          commentsApproval: rejectionComment,
+        },
+      });
     }
   }
 
@@ -322,11 +377,19 @@ export class ApprovalFlowsService {
         return { description };
       }
 
-      const shortId = clientReferenceId.slice(0, 8);
+      let realReferenceId = clientReferenceId;
+      const approvalBody = await this.prisma.approvalFlowBody.findUnique({
+        where: { id: clientReferenceId },
+      });
+      if (approvalBody) {
+        realReferenceId = approvalBody.idReference;
+      }
+
+      const shortId = realReferenceId.slice(0, 8);
 
       if (key === 'ASSIGNMENT') {
         const assignment = await this.prisma.assetAssignment.findUnique({
-          where: { id: clientReferenceId },
+          where: { id: realReferenceId },
           include: {
             asset: true,
             project: true,
@@ -353,7 +416,7 @@ export class ApprovalFlowsService {
         }
       } else if (key === 'CHANGES') {
         const document = await this.prisma.assetDocument.findUnique({
-          where: { id: clientReferenceId },
+          where: { id: realReferenceId },
           include: {
             asset: true,
             assetFieldDefinition: true,
@@ -370,7 +433,7 @@ export class ApprovalFlowsService {
         }
       } else if (key === 'UPDATE' || key === 'UPDATE_INFO' || key === 'ACTIVE_MODIFICATION') {
         const asset = await this.prisma.asset.findUnique({
-          where: { id: clientReferenceId },
+          where: { id: realReferenceId },
         });
 
         if (asset) {
@@ -385,5 +448,114 @@ export class ApprovalFlowsService {
       this.logger.error(`resolveReference error: ${err.message}`);
       return { description: 'N/A' };
     }
+  }
+
+  async resolveReferencesBulk(items: Array<{ id: string; key: string }>): Promise<Record<string, string>> {
+    const results: Record<string, string> = {};
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return results;
+    }
+
+    try {
+      // Obtener todos los ApprovalFlowBody correspondientes para mapear ids locales a reales si es necesario
+      const inputIds = items.map(item => item.id);
+      const approvalBodies = await this.prisma.approvalFlowBody.findMany({
+        where: { id: { in: inputIds } },
+      });
+
+      const bodyMap = new Map(approvalBodies.map(b => [b.id, b.idReference]));
+
+      // Separar los IDs reales por tipo de entidad para hacer consultas agrupadas (bulk)
+      const assignmentIds: string[] = [];
+      const documentIds: string[] = [];
+      const assetIds: string[] = [];
+
+      const resolvedIdToInputId = new Map<string, string>();
+
+      for (const item of items) {
+        const realId = bodyMap.get(item.id) || item.id;
+        resolvedIdToInputId.set(realId, item.id);
+
+        const key = (item.key || '').toUpperCase();
+        if (key === 'ASSIGNMENT') {
+          assignmentIds.push(realId);
+        } else if (key === 'CHANGES') {
+          documentIds.push(realId);
+        } else if (key === 'UPDATE' || key === 'UPDATE_INFO' || key === 'ACTIVE_MODIFICATION') {
+          assetIds.push(realId);
+        } else {
+          results[item.id] = `Referencia (${realId.slice(0, 8)})`;
+        }
+      }
+
+      // 1. Consultar Asignaciones en bulk
+      if (assignmentIds.length > 0) {
+        const assignments = await this.prisma.assetAssignment.findMany({
+          where: { id: { in: assignmentIds } },
+          include: { asset: true, project: true }
+        });
+        for (const assignment of assignments) {
+          const inputId = resolvedIdToInputId.get(assignment.id) || assignment.id;
+          const assetName = assignment.asset?.name || '';
+          let assigneeName = '';
+          if (assignment.assignmentType === 'STAFF') {
+            const staff = assignment.staffId as any;
+            assigneeName = staff?.name || 'Colaborador';
+          } else if (assignment.assignmentType === 'AREA') {
+            const area = assignment.areaId as any;
+            assigneeName = area?.name || 'Área';
+          } else if (assignment.assignmentType === 'PROJECT') {
+            assigneeName = assignment.project?.name || 'Proyecto';
+          }
+          results[inputId] = `${assetName}${assigneeName ? ` - Asignado: ${assigneeName}` : ''}`;
+        }
+      }
+
+      // 2. Consultar Documentos en bulk
+      if (documentIds.length > 0) {
+        const documents = await this.prisma.assetDocument.findMany({
+          where: { id: { in: documentIds } },
+          include: { asset: true, assetFieldDefinition: true }
+        });
+        for (const doc of documents) {
+          const inputId = resolvedIdToInputId.get(doc.id) || doc.id;
+          const assetName = doc.asset?.name || '';
+          const docType = doc.assetFieldDefinition?.label || 'Documento';
+          const fileName = doc.fileName || '';
+          results[inputId] = `${assetName ? `${assetName} - ` : ''}${docType}: ${fileName}`;
+        }
+      }
+
+      // 3. Consultar Activos en bulk
+      if (assetIds.length > 0) {
+        const assets = await this.prisma.asset.findMany({
+          where: { id: { in: assetIds } }
+        });
+        for (const asset of assets) {
+          const inputId = resolvedIdToInputId.get(asset.id) || asset.id;
+          results[inputId] = `${asset.name}${asset.code ? ` == ${asset.code}` : ''}`;
+        }
+      }
+
+      // Rellenar fallbacks para los IDs que no se pudieron encontrar en la base de datos
+      for (const item of items) {
+        if (!results[item.id]) {
+          const realId = bodyMap.get(item.id) || item.id;
+          const shortId = realId.slice(0, 8);
+          const key = (item.key || '').toUpperCase();
+          if (key === 'ASSIGNMENT') {
+            results[item.id] = `Asignación (${shortId})`;
+          } else if (key === 'CHANGES') {
+            results[item.id] = `Documento (${shortId})`;
+          } else {
+            results[item.id] = `Activo (${shortId})`;
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`resolveReferencesBulk error: ${err.message}`);
+    }
+
+    return results;
   }
 }

@@ -8,11 +8,12 @@ import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshGuard } from './jwt-auth.guard';
 import { SecondaryPrismaModule } from '../prisma/prisma-auth.module';
 import { PrismaServiceAuth } from 'src/prisma/prisma-auth.service';
+import { AuthCacheService } from './auth-cache-user.service';
 
 @Module({
-  providers: [AuthService, JwtStrategy, JwtRefreshGuard, PrismaServiceAuth],
+  providers: [AuthService, JwtStrategy, JwtRefreshGuard, PrismaServiceAuth, AuthCacheService],
   controllers: [AuthController],
-  exports: [AuthService, JwtRefreshGuard, JwtModule, PrismaServiceAuth],
+  exports: [AuthService, JwtRefreshGuard, JwtModule, PrismaServiceAuth, AuthCacheService],
   imports: [
     forwardRef(() => SecondaryPrismaModule),
     PassportModule,

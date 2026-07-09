@@ -60,6 +60,12 @@ export class AssetsController {
     return this.assetsService.findAllNoQuery();
   }
 
+  @Get('/without-location-inactive-telemetry')
+  @HttpCode(HttpStatus.OK)
+  findWithoutLocationInactiveTelemetry(@Query('search') search?: string) {
+    return this.assetsService.findWithoutLocationInactiveTelemetry(search);
+  }
+
   @Get('/find-all-no-query-notAssigment')
   @HttpCode(HttpStatus.OK)
   findAllNoQuerynotAssigment() {

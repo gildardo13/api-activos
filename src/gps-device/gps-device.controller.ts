@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Put } from '@nestjs/common';
 import { GpsDeviceService } from './gps-device.service';
 import { CreateGpsDeviceDto } from './dto/create-gps-device.dto';
 import { UpdateGpsDeviceDto } from './dto/update-gps-device.dto';
@@ -6,7 +6,7 @@ import { QueryGpsDeviceDto } from './dto/query-gps-device.dto';
 
 @Controller('gps-device')
 export class GpsDeviceController {
-  constructor(private readonly gpsDeviceService: GpsDeviceService) {}
+  constructor(private readonly gpsDeviceService: GpsDeviceService) { }
 
   @Post('/create-gpsDevice')
   create(@Body() createGpsDeviceDto: CreateGpsDeviceDto) {
@@ -33,7 +33,7 @@ export class GpsDeviceController {
     return this.gpsDeviceService.findOne(id);
   }
 
-  @Patch('/update-gpsDevice/:id')
+  @Put('/update-gpsDevice/:id')
   update(@Param('id') id: string, @Body() updateGpsDeviceDto: UpdateGpsDeviceDto) {
     return this.gpsDeviceService.update(id, updateGpsDeviceDto);
   }

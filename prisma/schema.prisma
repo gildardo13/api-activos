@@ -94,14 +94,24 @@ model AssetTelemetryLog {
   longitud String
   speed String
   imei String?
+  metadata Json?    @map("metadata")
   recordedAt DateTime @default(now())
-
   asset Asset @relation(fields: [assetId], references: [id])
-
+  isActive Boolean? @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([assetId])
+}
+
+model ApprovalFlowBody{
+  id String @id @default(uuid())
+  idReference String
+  idRequest String?
+  metadata Json?    @map("metadata")
+  typeAction String
+  statusApproval StatusApproval?
+  commentsApproval String?
 }
 
 model GpsDevice {

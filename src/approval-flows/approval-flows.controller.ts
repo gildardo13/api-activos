@@ -26,6 +26,12 @@ export class ApprovalFlowsController {
     return this.approvalFlowsService.getWorkflowStrict(query);
   }
 
+  @Get('/getOneListSolicitudRequest/:id/:idAction')
+  getWorkflowRequest( @Param('id') id: string,@Param('idAction') idAction: string ) {
+    return this.approvalFlowsService.getWorkflowidRequest(this.moduleId,id,idAction);
+  }
+
+
 
   @Post('/approvedFlow')
   approvedFlow(@Body() request: ApprovedFlowDto) {
@@ -52,5 +58,12 @@ export class ApprovalFlowsController {
     const id = body.id || body.clientReferenceId;
     const key = body.key || body.moduleAction?.key;
     return this.approvalFlowsService.resolveReference(id, key);
+  }
+
+  @Post('/resolve-references-bulk')
+  resolveReferencesBulk(
+    @Body() body: { items: Array<{ id: string; key: string }> }
+  ) {
+    return this.approvalFlowsService.resolveReferencesBulk(body.items);
   }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateAssetTelemetryLogDto } from './dto/create-asset-telemetry-log.dto';
 import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,10 +8,18 @@ import { isPointInPolygon } from './helper/helper';
 
 @Injectable()
 export class AssetTelemetryLogsService {
+  private readonly logger = new Logger(AssetTelemetryLogsService.name);
+
   constructor(private prisma: PrismaService) { }
 
   // 1. REGISTRAR TELEMETRÍA
   async create(dto: CreateAssetTelemetryLogDto) {
+    // MODIFICACIÓN: Si el motor está apagado (ignition === 0), forzamos la velocidad a '0'
+    // para evitar que la deriva de la señal GPS registre velocidades falsas con el tractor quieto.
+    if (dto.metadata?.ignition === 0) {
+      dto.speed = '0';
+    }
+
     // 1. Verificar si el asset existe
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: dto.assetId },
@@ -19,6 +27,10 @@ export class AssetTelemetryLogsService {
 
     if (!assetExist) {
       throw new BadRequestException('Asset not found');
+    }
+
+    if (parseFloat(dto.latitud) === 0 || parseFloat(dto.longitud) === 0) {
+      throw new BadRequestException('La latitud o longitud no pueden ser 0.');
     }
 
     // Obtener la última telemetría registrada para este activo
@@ -32,19 +44,63 @@ export class AssetTelemetryLogsService {
     });
 
 
-    // 2. Validar que las coordenadas no sean idénticas a las últimas registradas
-    if (lasTelemetry && lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud) {
-      throw new BadRequestException('Las coordenadas son idénticas a la última telemetría registrada.');
+    // 2. Validar que las coordenadas no sean idénticas a las últimas registradas,
+    // a menos que haya algún cambio de estado relevante (ignición, velocidad, o E/S).
+    if (lasTelemetry) {
+      const isLocationIdentical = lasTelemetry.latitud === dto.latitud && lasTelemetry.longitud === dto.longitud;
+      
+      const lastMetadata = (lasTelemetry.metadata as Record<string, any>) || {};
+      const lastVoltage = lastMetadata.externalVoltage !== undefined && lastMetadata.externalVoltage !== null ? Number(lastMetadata.externalVoltage) : 0;
+      const wasOnExternalPower = lastVoltage > 5;
+      const inputMetadata = dto.metadata || {};
+      const isExternalPowerLost = (inputMetadata.externalVoltage === 0 || inputMetadata.externalVoltage === null || inputMetadata.externalVoltage === undefined) && wasOnExternalPower;
+
+      const resolvedDin1 = inputMetadata.din1 !== undefined && inputMetadata.din1 !== null ? inputMetadata.din1 : 0;
+      const resolvedDin2 = inputMetadata.din2 !== undefined && inputMetadata.din2 !== null ? inputMetadata.din2 : 0;
+      const resolvedDout1 = inputMetadata.dout1 !== undefined && inputMetadata.dout1 !== null ? inputMetadata.dout1 : 0;
+      const resolvedAin1 = inputMetadata.ain1 !== undefined && inputMetadata.ain1 !== null ? inputMetadata.ain1 : 0;
+
+      const hasStateChanged = 
+        lastMetadata.ignition !== inputMetadata.ignition ||
+        lastMetadata.din1 !== resolvedDin1 ||
+        lastMetadata.din2 !== resolvedDin2 ||
+        lastMetadata.ain1 !== resolvedAin1 ||
+        lastMetadata.dout1 !== resolvedDout1 ||
+        isExternalPowerLost;
+
+      if (isLocationIdentical && !hasStateChanged) {
+        throw new BadRequestException('Las coordenadas y estados son idénticas a la última telemetría registrada.');
+      }
+
+      //.APAGADO.
+      const isStillOff = lastVoltage <= 5 && (inputMetadata.externalVoltage === 0 || inputMetadata.externalVoltage === null || inputMetadata.externalVoltage === undefined);
+      if (isStillOff && !hasStateChanged) {
+        throw new BadRequestException('El vehículo ya estaba apagado. Telemetría omitida.');
+      }
     }
 
     // 3. Ejecutar la creación y la actualización en una transacción simultánea
     const [telemetry, updateAsset] = await this.prisma.$transaction(async (tx) => {
+      const inputMetadata = dto.metadata || {};
+      const finalExternalVoltage = inputMetadata.externalVoltage !== undefined && inputMetadata.externalVoltage !== null ? inputMetadata.externalVoltage : null;
+      const finalBatteryVoltage = inputMetadata.batteryVoltage !== undefined && inputMetadata.batteryVoltage !== null ? inputMetadata.batteryVoltage : null;
+
       const newTelemetry = await tx.assetTelemetryLog.create({
         data: {
           assetId: dto.assetId,
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
+          isActive: dto.isActive,
+          metadata: {
+            din1: inputMetadata.din1 !== undefined && inputMetadata.din1 !== null ? inputMetadata.din1 : 0,
+            din2: inputMetadata.din2 !== undefined && inputMetadata.din2 !== null ? inputMetadata.din2 : 0,
+            dout1: inputMetadata.dout1 !== undefined && inputMetadata.dout1 !== null ? inputMetadata.dout1 : 0,
+            ain1: inputMetadata.ain1 !== undefined && inputMetadata.ain1 !== null ? inputMetadata.ain1 : 0,
+            ignition: inputMetadata.ignition !== undefined && inputMetadata.ignition !== null ? inputMetadata.ignition : null,
+            externalVoltage: finalExternalVoltage,
+            batteryVoltage: finalBatteryVoltage,
+          },
           recordedAt: dto.recordedAt ?? new Date(),
         },
       });
@@ -64,7 +120,8 @@ export class AssetTelemetryLogsService {
   }
 
   // 2. OBTENER HISTORIAL (Por Asset)
-  async findAllHistoryByAsset(assetId: string) {
+  // 2. OBTENER HISTORIAL (Por Asset)
+  async findAllHistoryByAsset(assetId: string, from?: string, to?: string) {
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: assetId },
     });
@@ -73,9 +130,55 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
+    const where: any = {
+      assetId,
+      isActive: true,
+    };
+
+    if (from || to) {
+      where.recordedAt = {};
+      if (from) {
+        where.recordedAt.gte = new Date(from);
+      }
+      if (to) {
+        where.recordedAt.lte = new Date(to);
+      }
+    }
+
     return this.prisma.assetTelemetryLog.findMany({
-      where: { assetId },
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: { recordedAt: 'desc' },
+    });
+  }
+
+  // 2.1 OBTENER HISTORIAL INACTIVO (Por Asset)
+  async findAllInactiveHistoryByAsset(assetId: string, from?: string, to?: string) {
+    const assetExist = await this.prisma.asset.findUnique({
+      where: { id: assetId },
+    });
+
+    if (!assetExist) {
+      throw new BadRequestException('Asset not found');
+    }
+
+    const where: any = {
+      assetId,
+      isActive: false,
+    };
+
+    if (from || to) {
+      where.recordedAt = {};
+      if (from) {
+        where.recordedAt.gte = new Date(from);
+      }
+      if (to) {
+        where.recordedAt.lte = new Date(to);
+      }
+    }
+
+    return this.prisma.assetTelemetryLog.findMany({
+      where,
+      orderBy: { recordedAt: 'desc' },
     });
   }
 
@@ -94,37 +197,48 @@ export class AssetTelemetryLogsService {
       );
     }
 
-    return latest;
+    return this.adjustTelemetryOfflineStatus(latest);
   }
 
   // 4. OBTENER LAS ÚLTIMAS UBICACIONES DE TODOS LOS ASSETS (Optimizado sin N+1)
-  async findAllLatest() {
+  async findAllLatest(search?: string) {
+    const whereAndClause: any[] = [
+      { lastLocation: { not: null } },
+      { lastLocation: { not: "" } },
+
+      // Regla 1 CORREGIDA: Permite nulos y estados diferentes a PENDING
+      {
+        OR: [
+          { statusApproval: { not: 'PENDING' } },
+          { statusApproval: null }
+        ]
+      },
+
+      // Regla 2: (Se mantiene igual por ahora)
+      {
+        assetAssignments: {
+          none: {
+            statusApproval: {
+              in: ['PENDING']
+            }
+          }
+        }
+      }
+    ];
+
+    if (search) {
+      whereAndClause.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
     // 1. Obtenemos los assets aplicando las reglas de exclusión desde la BD
     const listAsset = await this.prisma.asset.findMany({
       where: {
-        AND: [
-          { lastLocation: { not: null } },
-          { lastLocation: { not: "" } },
-
-          // Regla 1 CORREGIDA: Permite nulos y estados diferentes a PENDING
-          {
-            OR: [
-              { statusApproval: { not: 'PENDING' } },
-              { statusApproval: null }
-            ]
-          },
-
-          // Regla 2: (Se mantiene igual por ahora)
-          {
-            assetAssignments: {
-              none: {
-                statusApproval: {
-                  in: ['PENDING']
-                }
-              }
-            }
-          }
-        ]
+        AND: whereAndClause
       },
       include: {
         assetType: true
@@ -152,7 +266,7 @@ export class AssetTelemetryLogsService {
     return listAsset.map((asset) => {
       const telemetry = telemetries.find((t) => t.id === asset.lastLocation);
       return {
-        ...telemetry,
+        ...this.adjustTelemetryOfflineStatus(telemetry),
         assetId: asset
       };
     });
@@ -195,7 +309,7 @@ export class AssetTelemetryLogsService {
     // Retorna exactamente la estructura que esperabas en tu controlador
     return {
       logs,
-      lastLocations,
+      lastLocations: this.adjustTelemetryArray(lastLocations),
     };
   }
 
@@ -251,6 +365,18 @@ export class AssetTelemetryLogsService {
   async findAllQuery(query: QueryAssetTelemetryLogDto) {
     const where: any = {};
 
+    if (query.assetId) {
+      where.assetId = query.assetId;
+    }
+
+    if (query.isActive !== undefined) {
+      if (query.isActive === 'true') {
+        where.isActive = true;
+      } else if (query.isActive === 'false') {
+        where.isActive = false;
+      }
+    }
+
     if (query.searchName) {
       where.asset = {
         name: {
@@ -262,6 +388,7 @@ export class AssetTelemetryLogsService {
 
     if (query.searchJibbyId) {
       where.asset = {
+        ...where.asset,
         assetType: {
           categoryId: {
             path: ['id'],
@@ -369,5 +496,25 @@ export class AssetTelemetryLogsService {
         assetId: assetId
       }
     });
+  }
+
+  private adjustTelemetryOfflineStatus(telemetry: any) {
+    if (!telemetry) return telemetry;
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const dateToCheck = telemetry.recordedAt || telemetry.createdAt;
+
+    if (dateToCheck && new Date(dateToCheck) < tenMinutesAgo) {
+      return {
+        ...telemetry,
+        ignition: null,
+      };
+    }
+
+    return telemetry;
+  }
+
+  private adjustTelemetryArray(telemetries: any[]) {
+    return telemetries.map((t) => this.adjustTelemetryOfflineStatus(t));
   }
 }
