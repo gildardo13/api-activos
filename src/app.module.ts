@@ -8,7 +8,8 @@ import { MulterModule } from '@nestjs/platform-express';
 import { SecondaryPrismaModule } from './prisma/prisma-auth.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { IntegrationModule } from './common/integration/integration.module';
-
+import { AppController } from './app.controller';
+ 
 // Asset and related modules
 import { AssetsModule } from './assets/assets.module';
 import { AssetTypesModule } from './asset-types/asset-types.module';
@@ -25,8 +26,9 @@ import { GpsDeviceModule } from './gps-device/gps-device.module';
 import { GpsModule } from './gps/tcp-server.module';
 import { ApprovalFlowBodyModule } from './approval-flow-body/approval-flow-body.module';
 import { CamerasModule } from './cameras/cameras.module';
-
+ 
 @Module({
+  controllers: [AppController],
   imports: [
     AuthModule,
     PrismaModule,
@@ -52,8 +54,6 @@ import { CamerasModule } from './cameras/cameras.module';
     GpsModule,
     ApprovalFlowBodyModule,
     CamerasModule
-  ],
-  controllers: [],
   providers: [],
 })
 
