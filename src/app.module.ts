@@ -54,6 +54,7 @@ import { CamerasModule } from './cameras/cameras.module';
     GpsModule,
     ApprovalFlowBodyModule,
     CamerasModule
+  ],
   providers: [],
 })
 
