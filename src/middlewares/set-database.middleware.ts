@@ -139,7 +139,7 @@ export class SetDatabaseMiddleware implements NestMiddleware {
       /* ----------------------------------------------------
       * USUARIO Control Activos (OAuth)
       * -------------------------------------------------- */
-      const accessToken = req.cookies?.app_session || req.cookies?.['jibby.session_token'];
+      const accessToken = req.cookies?.['jibby.session_token'];
 
       if (!accessToken) {
         return res.status(401).json({ message: 'Sesión requerida' });
