@@ -30,6 +30,7 @@ async function bootstrap() {
       'http://localhost:4002', // control activo
       'https://auth.jibby.mx',
       'https://activos.jibby.mx',
+      'https://control-activos.jibby.mx',
       'https://admin.jibby.mx',
       'https://apicompras.cicsagruas.com',
       'https://procura.jibby.mx',
