@@ -21,9 +21,18 @@ export interface AppRequest extends Request {
 
 @Injectable()
 export class SetDatabaseMiddleware implements NestMiddleware {
-  
+
   // Cache para trackear qué usuarios ya detonaron la sincronización
   private static syncedUsers = new Set<string>();
+
+  // Cache corto de validación de token: evita pegarle al auth-backend externo
+  // en cada request (el dashboard dispara varias peticiones en paralelo por
+  // cada carga de página, y sin caché eso satura/ralentiza el servicio externo).
+  private static userinfoCache = new Map<
+    string,
+    { user: any; organization: any; expiresAt: number }
+  >();
+  private static readonly USERINFO_CACHE_TTL_MS = 60 * 1000;
 
   constructor(
     private readonly prismaMultiService: PrismaMultiService,
@@ -81,17 +90,31 @@ export class SetDatabaseMiddleware implements NestMiddleware {
         return res.status(401).json({ message: 'Sesión requerida' });
       }
 
-      const userinfoRes = await fetch(`${urlAuth}/api/auth/oauth2/userinfo`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      let cached = SetDatabaseMiddleware.userinfoCache.get(token);
+      let user: any;
+      let organization: any;
 
-      if (!userinfoRes.ok) {
-        return res.status(401).json({ message: 'Sesión inválida' });
+      if (cached && cached.expiresAt > Date.now()) {
+        ({ user, organization } = cached);
+      } else {
+        const userinfoRes = await fetch(`${urlAuth}/api/auth/oauth2/userinfo`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!userinfoRes.ok) {
+          SetDatabaseMiddleware.userinfoCache.delete(token);
+          return res.status(401).json({ message: 'Sesión inválida' });
+        }
+
+        ({ user, organization } = await userinfoRes.json());
+        SetDatabaseMiddleware.userinfoCache.set(token, {
+          user,
+          organization,
+          expiresAt: Date.now() + SetDatabaseMiddleware.USERINFO_CACHE_TTL_MS,
+        });
       }
-
-      const { user, organization } = await userinfoRes.json();
 
       // Un admin/owner puede operar sobre una organización distinta a la suya
       // pasando el header empresa/organizationid explícitamente.
