@@ -36,8 +36,8 @@ export class SetDatabaseMiddleware implements NestMiddleware {
       : process.env.CONTROL_ACTIVOS_AUTH_BACK_DEV;
 
 
-    if (process.env.CONTROL_ACTIVOS_ENV === 'dev') {
-      let empresa = (req.headers['empresa'] as string | undefined) 
+    if (['dev', 'test'].includes(process.env.CONTROL_ACTIVOS_ENV)) {
+      let empresa = (req.headers['empresa'] as string | undefined)
         || (req.headers['organizationid'] as string | undefined)
         || (req.headers['x-tenant-id'] as string | undefined)
         || (req.headers['tenantid'] as string | undefined);
@@ -70,118 +70,47 @@ export class SetDatabaseMiddleware implements NestMiddleware {
     }
 
     try {
-      /* ----------------------------------------------------
-      * ADMIN → Control Activos
-      * -------------------------------------------------- */
+      // El token viaja como header Authorization: Bearer (interceptor de axios en el
+      // frontend); la cookie app_session queda como fallback para requests que no
+      // pasan por ese interceptor (ej. navegación directa / descargas).
+      const token = req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.slice(7)
+        : req.cookies?.app_session;
 
-      const adminSession = req.cookies.app_session;
-
-      if (adminSession) {
-        const adminRes = await fetch(
-          `${urlAuth}/api/auth/oauth2/userinfo`,
-          {
-            headers: {
-              Authorization: `Bearer ${adminSession}`,
-            },
-          },
-        );
-
-        if (adminRes && adminRes.ok) {
-          try {
-            const data = await adminRes.json();
-            if (data && data.user && data.organization) {
-              const { user, organization } = data;
-              if (['admin', 'owner'].includes(user.role)) {
-                const empresa =
-                  organization.id ||
-                  (req.headers['empresa'] as string | undefined);
-
-                if (!empresa) {
-                  return res.status(400).json({ message: 'Empresa requerida' });
-                }
-
-                const prisma =
-                  await this.prismaMultiService.getClientForCompany(empresa);
-              
-                req.prisma = prisma;
-                req.empresa = empresa;
-                req.userInfo = {
-                  sub: user.id,
-                };
-
-                return next();
-              }
-            }
-          } catch (jsonErr) {
-            console.error('Error parsing admin userinfo json:', jsonErr);
-          }
-        }
-        // si falla, NO return → sigue al flujo Control Activos normal
-      }
-
-      /* ----------------------------------------------------
-      * LEGACY (header empresa)
-      * -------------------------------------------------- */
-      // header empresa (flujo legacy)
-      const headerEmpresa = (req.headers['empresa'] ||
-        req.headers['x-tenant-id'] ||
-        req.headers['tenantid']) as string | undefined;
-
-      if (headerEmpresa) {
-        const prisma =
-          await this.prismaMultiService.getClientForCompany(headerEmpresa);
-
-        req.prisma = prisma;
-        req.empresa = headerEmpresa;
-        return next();
-      }
-
-      /* ----------------------------------------------------
-      * USUARIO Control Activos (OAuth)
-      * -------------------------------------------------- */
-      const accessToken = req.cookies?.['jibby.session_token'];
-
-      if (!accessToken) {
+      if (!token) {
         return res.status(401).json({ message: 'Sesión requerida' });
       }
 
-      const userinfoRes = await fetch(
-        `${urlAuth}/api/auth/oauth2/userinfo`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+      const userinfoRes = await fetch(`${urlAuth}/api/auth/oauth2/userinfo`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       if (!userinfoRes.ok) {
-        return res.status(401).json({ message: 'Sesión inválida set-middleware' });
+        return res.status(401).json({ message: 'Sesión inválida' });
       }
 
-      const userinfo = await userinfoRes.json();
-      req.userInfo = userinfo.user;
-      req.accessToken = accessToken;
-      console.log("🚀 ~ SetDatabaseMiddleware ~ use ~ userinfo:", userinfo)
+      const { user, organization } = await userinfoRes.json();
 
-      const empresa = userinfo.organization?.id;
+      // Un admin/owner puede operar sobre una organización distinta a la suya
+      // pasando el header empresa/organizationid explícitamente.
+      const headerEmpresa =
+        (req.headers['empresa'] as string | undefined) ||
+        (req.headers['organizationid'] as string | undefined);
+      const isAdminOverride = ['admin', 'owner'].includes(user?.role) && !!headerEmpresa;
+      const empresa = isAdminOverride ? headerEmpresa : organization?.id;
 
       if (!empresa) {
-        return res
-          .status(400)
-          .json({ message: 'Empresa activa no encontrada' });
+        return res.status(400).json({ message: 'Empresa activa no encontrada' });
       }
 
       const prisma = await this.prismaMultiService.getClientForCompany(empresa);
 
       req.prisma = prisma;
       req.empresa = empresa;
-
-      // Sync lazy de RH en background con el token ya validado
-      /*const userKey = `${empresa}-${userinfo.user?.id || req.userInfo?.sub}`;
-      if (!SetDatabaseMiddleware.syncedUsers.has(userKey)) {
-        SetDatabaseMiddleware.syncedUsers.add(userKey);
-        this.integrationService.triggerBootstrapSync(accessToken, empresa);
-      }*/
+      req.userInfo = user;
+      req.accessToken = token;
 
       next();
     } catch (error) {
