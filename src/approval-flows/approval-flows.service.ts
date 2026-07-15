@@ -241,14 +241,14 @@ export class ApprovalFlowsService {
 
   async updateStatus(request: any) {
     try {
-
-      if (request.moduleAction.key === 'ASSIGNMENT') {
-        this.assetAssignmentsService.approvalStatus(request.clientReferenceId, request.status.toUpperCase())
+      if (request.moduleAction.key === 'ASSIGNMENT' || request.moduleAction.key === 'assignment') {
+        const approvalBody = await this.prisma.approvalFlowBody.findUnique({
+          where: { id: request.clientReferenceId },
+        });
+        if (approvalBody) {
+          this.assetAssignmentsService.approvalStatus(approvalBody.idReference, request.status.toUpperCase());
+        }
       }
-
-      /*if (request.moduleAction.name === 'active_assign') {
-        this.assetAssignmentsService.approvalStatus(request.clientReferenceId, request.status.toUpperCase())
-      }*/
     } catch (err: any) {
       this.logger.error(`updateStatus error: ${err.message}`);
       throw new HttpException(
