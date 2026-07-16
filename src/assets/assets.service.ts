@@ -11,6 +11,7 @@ import { CreateAssetDto, StatusApproval, StatusAsset } from './dto/create-asset.
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsDto } from './dto/query-asset.dto';
+import { formatToISODate } from 'src/common/helper';
 import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service';
 import { CloudinaryService } from 'src/common/cloudinary/cloudinary.service';
 import * as XLSX from 'xlsx';
@@ -35,6 +36,7 @@ export class AssetsService {
     // 1. Validar que el assetType exista
     const assetType = await this.prisma.assetType.findUnique({
       where: { id: dto.assetTypeId },
+      include: { assetFieldDefinitions: true },
     });
 
     if (!assetType) {
@@ -42,6 +44,17 @@ export class AssetsService {
     }
     if (assetType.status !== "ACTIVE") {
       throw new BadRequestException('Asset Desactivado');
+    }
+
+    // Validar campos dinámicos requeridos
+    const inputAttributes = (dto.attributesData as any[]) || [];
+    for (const fieldDef of assetType.assetFieldDefinitions) {
+      if (fieldDef.isRequired) {
+        const attributeVal = inputAttributes.find((a) => a.idField === fieldDef.id);
+        if (!attributeVal || attributeVal.value === undefined || attributeVal.value === null || String(attributeVal.value).trim() === '') {
+          throw new BadRequestException(`El campo "${fieldDef.label}" es obligatorio`);
+        }
+      }
     }
 
     // 2. Validar código único
@@ -786,6 +799,10 @@ export class AssetsService {
         }
       }
 
+      if (field.fieldType === 'date' || field.fieldType === 'DATE') {
+        finalLabel += ' (DD/MM/AAAA)';
+      }
+
       headers.push(finalLabel);
     }
     const wb = XLSX.utils.book_new();
@@ -936,6 +953,104 @@ export class AssetsService {
         gpsDeviceId = gpsDev.id;
       }
 
+      // Validar campos dinámicos obligatorios y sus tipos (que no sean de tipo FILE)
+      let validationError = false;
+      for (const fieldDef of assetType.assetFieldDefinitions) {
+        if (fieldDef.fieldType === 'FILE') continue;
+
+        const userVal = assetData.dynamicAttributes[fieldDef.id];
+        const isEmpty = userVal === undefined || userVal === null || String(userVal).trim() === '';
+
+        // 1. Validar requerido
+        if (fieldDef.isRequired && isEmpty) {
+          errors.push({
+            row: rowNumber,
+            error: `El campo "${fieldDef.label}" es obligatorio`,
+          });
+          validationError = true;
+          continue;
+        }
+
+        // 2. Validar tipo de dato si no está vacío
+        if (!isEmpty) {
+          const strVal = String(userVal).trim();
+
+          if (fieldDef.fieldType === 'NUMBER') {
+            if (isNaN(Number(strVal))) {
+              errors.push({
+                row: rowNumber,
+                error: `El campo "${fieldDef.label}" debe ser un número válido (recibido: "${userVal}")`,
+              });
+              validationError = true;
+            }
+          }
+
+          if (fieldDef.fieldType === 'DATE') {
+            let parsedDate = strVal;
+            const dmyMatch = strVal.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+            if (dmyMatch) {
+              // Convertir DD/MM/AAAA o DD-MM-AAAA a AAAA-MM-DD
+              parsedDate = `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+            }
+
+            const timestamp = Date.parse(parsedDate);
+            const num = Number(strVal);
+            const isExcelDate = !isNaN(num) && num > 0;
+
+            let isRealCalendarDate = false;
+            if (!isNaN(timestamp)) {
+              const testDate = new Date(parsedDate);
+              if (dmyMatch) {
+                const day = parseInt(dmyMatch[1], 10);
+                const month = parseInt(dmyMatch[2], 10) - 1; // 0-indexed en JS
+                const year = parseInt(dmyMatch[3], 10);
+                isRealCalendarDate = testDate.getFullYear() === year && testDate.getMonth() === month && testDate.getDate() === day;
+              } else {
+                const ymdMatch = strVal.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+                if (ymdMatch) {
+                  const year = parseInt(ymdMatch[1], 10);
+                  const month = parseInt(ymdMatch[2], 10) - 1;
+                  const day = parseInt(ymdMatch[3], 10);
+                  isRealCalendarDate = testDate.getFullYear() === year && testDate.getMonth() === month && testDate.getDate() === day;
+                } else {
+                  isRealCalendarDate = true;
+                }
+              }
+            }
+
+            const isMalformed = isNaN(timestamp);
+            const isNonExistent = !isMalformed && !isRealCalendarDate;
+
+            if ((isMalformed || isNonExistent) && !isExcelDate) {
+              const suffix = isNonExistent ? ' (fecha inexistente)' : '';
+              errors.push({
+                row: rowNumber,
+                error: `El campo "${fieldDef.label}" debe ser una fecha válida en formato DD/MM/AAAA o AAAA-MM-DD (recibido: "${userVal}")${suffix}`,
+              });
+              validationError = true;
+            }
+          }
+
+          if (fieldDef.fieldType === 'SELECT') {
+            const options = fieldDef.options as string[];
+            if (options && options.length > 0) {
+              const match = options.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase());
+              if (!match) {
+                errors.push({
+                  row: rowNumber,
+                  error: `El campo "${fieldDef.label}" contiene un valor no permitido. Opciones válidas: [${options.join(', ')}] (recibido: "${userVal}")`,
+                });
+                validationError = true;
+              }
+            }
+          }
+        }
+      }
+
+      if (validationError) {
+        continue;
+      }
+
       parsedAssets.push({
         ...assetData,
         gpsDeviceId,
@@ -971,7 +1086,10 @@ export class AssetsService {
               fileName: expectedFileName,
             });
           } else {
-            const userVal = parsedAsset.dynamicAttributes[fieldDef.id] || '';
+            let userVal = parsedAsset.dynamicAttributes[fieldDef.id] || '';
+            if (fieldDef.fieldType === 'DATE' && userVal) {
+              userVal = formatToISODate(userVal);
+            }
             attributesData.push({
               idField: fieldDef.id,
               label: fieldDef.label,
