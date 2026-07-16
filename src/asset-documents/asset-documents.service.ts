@@ -195,7 +195,11 @@ export class AssetDocumentsService {
         skip,
         take: limit,
         include: {
-          asset: true,
+          asset: {
+            include: {
+              assetAssignments: true,
+            }
+          },
           assetFieldDefinition: true,
         },
         orderBy: {

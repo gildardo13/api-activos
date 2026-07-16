@@ -53,16 +53,17 @@ export class ApprovalFlowsController {
 
   @Post('/resolve-reference')
   resolveReference(
-    @Body() body: { id?: string; clientReferenceId?: string; key?: string; moduleAction?: { key: string } }
+    @Body() body: { id?: string; clientReferenceId?: string; key?: string; moduleAction?: { id?: string; key?: string } }
   ) {
     const id = body.id || body.clientReferenceId;
     const key = body.key || body.moduleAction?.key;
-    return this.approvalFlowsService.resolveReference(id, key);
+    const moduleActionId = body.moduleAction?.id;
+    return this.approvalFlowsService.resolveReference(id, key, moduleActionId);
   }
 
   @Post('/resolve-references-bulk')
   resolveReferencesBulk(
-    @Body() body: { items: Array<{ id: string; key: string }> }
+    @Body() body: { items: Array<{ id: string; key: string; moduleActionId?: string }> }
   ) {
     return this.approvalFlowsService.resolveReferencesBulk(body.items);
   }
