@@ -17,6 +17,10 @@ import { AssetDocumentsService } from 'src/asset-documents/asset-documents.servi
 @Injectable({ scope: Scope.REQUEST })
 export class ApprovalFlowsService {
   private readonly moduleId = process.env.MODULE_ID;
+  private readonly assigmentId = process.env.MODULE_ACTION_ASSIGNMENT_ID;
+  private readonly changesId = process.env.MODULE_ACTION_CHANGES_ID;
+  private readonly updateId = process.env.MODULE_ACTION_UPDATE_ID;
+
   private readonly logger = new Logger(ApprovalFlowsService.name);
 
   constructor(
@@ -145,11 +149,9 @@ export class ApprovalFlowsService {
       const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
         headers: this.buildHeaders(),
       });
-      if (res.data === null || res.data === undefined || (Array.isArray(res.data) && res.data.length === 0) || (typeof res.data === "object" && !Array.isArray(res.data) && Object.keys(res.data).length === 0)
-      ) {
+      if (!res.data || (Array.isArray(res.data) && res.data.length === 0) || (typeof res.data === "object" && Object.keys(res.data).length === 0)) {
         return [];
       }
-
       return res.data;
 
       //return [];
@@ -241,6 +243,7 @@ export class ApprovalFlowsService {
 
   async updateStatus(request: any) {
     try {
+
       if (request.moduleAction.key === 'ASSIGNMENT' || request.moduleAction.key === 'assignment') {
         const approvalBody = await this.prisma.approvalFlowBody.findUnique({
           where: { id: request.clientReferenceId },
@@ -481,7 +484,7 @@ export class ApprovalFlowsService {
           assignmentIds.push(realId);
         } else if (key === 'CHANGES') {
           documentIds.push(realId);
-        } else if (key === 'UPDATE' || key === 'UPDATE_INFO' || key === 'ACTIVE_MODIFICATION') {
+        } else if (key === 'UPDATE') {
           assetIds.push(realId);
         } else {
           results[item.id] = `Referencia (${realId.slice(0, 8)})`;
@@ -547,7 +550,7 @@ export class ApprovalFlowsService {
             results[item.id] = `Asignación (${shortId})`;
           } else if (key === 'CHANGES') {
             results[item.id] = `Documento (${shortId})`;
-          } else {
+          } else if (key === 'UPDATE') {
             results[item.id] = `Activo (${shortId})`;
           }
         }
