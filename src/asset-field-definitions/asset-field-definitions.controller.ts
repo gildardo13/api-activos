@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Query} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Query, ParseIntPipe} from '@nestjs/common';
 import { AssetFieldDefinitionsService } from './asset-field-definitions.service';
 import { CreateAssetFieldDefinitionDto} from './dto/create-asset-field-definition.dto';
 import { UpdateAssetFieldDefinitionDto } from './dto/update-asset-field-definition.dto';
 import { QueryAssetFieldDefinitionDto } from './dto/query-asset-field.dto';
+import { ReorderAssetFieldDefinitionsDto } from './dto/reorder-asset-field-definitions.dto';
 
 @Controller('asset-field-definitions')
 export class AssetFieldDefinitionsController {
@@ -54,7 +55,7 @@ export class AssetFieldDefinitionsController {
   }
 
  
-  @Get('/asset-types/:id/:fields')
+  @Get('/asset-types/:id/fields')
   @HttpCode(HttpStatus.OK)
   findByAssetType(
     @Param('id') assetTypeId: string
@@ -96,5 +97,21 @@ export class AssetFieldDefinitionsController {
     return this.assetFieldDefinitionsService.remove(
       id
     );
+  }
+
+  @Patch('/reorder')
+  @HttpCode(HttpStatus.OK)
+  reorder(
+    @Body() dto: ReorderAssetFieldDefinitionsDto,
+  ) {
+    return this.assetFieldDefinitionsService.reorder(dto);
+  }
+
+  @Get('/grid-combinations/:count')
+  @HttpCode(HttpStatus.OK)
+  getGridCombinations(
+    @Param('count', ParseIntPipe) count: number,
+  ) {
+    return this.assetFieldDefinitionsService.getGridCombinations(count);
   }
 }

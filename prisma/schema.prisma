@@ -50,7 +50,8 @@ model AssetType {
   name        String
   description String?
   status Status @default(ACTIVE)
-  clasificationType ClasificationType? 
+  clasificationType ClasificationType?
+  metadata Json?    @map("metadata")
   assets      Asset[]
   assetFieldDefinitions      AssetFieldDefinition[]
 
@@ -135,6 +136,7 @@ model AssetFieldDefinition {
   placeholder String?
   options Json?
   isRequired Boolean
+  position Int?
   
   assetDocuments AssetDocument[]
   assetType AssetType @relation(fields: [assetTypeId], references: [id])

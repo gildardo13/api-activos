@@ -2,6 +2,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -35,4 +36,9 @@ export class CreateAssetFieldDefinitionDto {
 
   @IsBoolean()
   isRequired: boolean;
+
+
+  @IsNumber()
+  @IsOptional()
+  position?: number;
 }

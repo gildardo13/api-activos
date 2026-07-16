@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAssetFieldDefinitionDto, FieldType } from './dto/create-asset-field-definition.dto';
 import { UpdateAssetFieldDefinitionDto } from './dto/update-asset-field-definition.dto';
+import { ReorderAssetFieldDefinitionsDto } from './dto/reorder-asset-field-definitions.dto';
 
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetFieldDefinitionDto } from './dto/query-asset-field.dto';
@@ -41,7 +42,12 @@ export class AssetFieldDefinitionsService {
       );
     }
 
-    return this.prisma.assetFieldDefinition.create({
+    const nextOrder = await this.prisma.assetFieldDefinition.count({
+      where: { assetTypeId: dto.assetTypeId },
+    });
+
+
+    const newField = await this.prisma.assetFieldDefinition.create({
       data: {
         assetTypeId: dto.assetTypeId,
         label: dto.label.trim(),
@@ -49,8 +55,44 @@ export class AssetFieldDefinitionsService {
         placeholder: dto.placeholder,
         isRequired: dto.isRequired,
         options: dto.options,
+        position: dto.position !== undefined && dto.position !== null ? dto.position : nextOrder,
       },
     });
+
+    // Obtener total de campos del tipo de activo para calcular cuadrícula
+    const count = await this.prisma.assetFieldDefinition.count({
+      where: { assetTypeId: dto.assetTypeId },
+    });
+
+    const currentMetadata = (assetType.metadata as Record<string, any>) || {};
+    let indexCol = currentMetadata.indexCol || 0;
+    let indexRow = currentMetadata.indexRow || 0;
+
+    if (indexCol === 0) indexCol = 1;
+    if (indexRow === 0) indexRow = 1;
+
+    // Incrementar cuadrícula de forma balanceada si supera la capacidad
+    while (indexCol * indexRow < count) {
+      if (indexCol <= indexRow) {
+        indexCol++;
+      } else {
+        indexRow++;
+      }
+    }
+
+    // Actualizar metadata de AssetType
+    await this.prisma.assetType.update({
+      where: { id: dto.assetTypeId },
+      data: {
+        metadata: {
+          ...currentMetadata,
+          indexCol,
+          indexRow,
+        },
+      },
+    });
+
+    return newField;
   }
 
   async findAll(query: QueryAssetFieldDefinitionDto) {
@@ -131,23 +173,38 @@ export class AssetFieldDefinitionsService {
   }
 
   async findByAssetTypeId(assetTypeId: string) {
-    const fields = await this.prisma.assetFieldDefinition.findMany({
-      where: {
-        assetTypeId,
-      },
-      orderBy: {
-        createdAt: 'asc'
-      },
-    });
+    const [fields, assetType] = await Promise.all([
+      this.prisma.assetFieldDefinition.findMany({
+        where: {
+          assetTypeId,
+        },
+        orderBy: {
+          position: 'asc'
+        },
+      }),
+      this.prisma.assetType.findUnique({
+        where: { id: assetTypeId },
+      }),
+    ]);
 
-    return fields.map((field) => ({
-      id: field.id,
-      label: field.label,
-      fieldType: field.fieldType,
-      isRequired: field.isRequired,
-      placeholder: field.placeholder,
-      options: field.options,
-    }));
+    const metadata = (assetType?.metadata as Record<string, any>) || {};
+
+    return {
+      data: fields.map((field) => ({
+        id: field.id,
+        label: field.label,
+        fieldType: field.fieldType,
+        isRequired: field.isRequired,
+        placeholder: field.placeholder,
+        options: field.options,
+        position: field.position,
+      })),
+      metadata: {
+        indexCol: metadata.indexCol ?? 0,
+        indexRow: metadata.indexRow ?? 0,
+        ...metadata,
+      },
+    };
   }
 
   async findByAssetTypeIdPagination(
@@ -191,7 +248,7 @@ export class AssetFieldDefinitionsService {
         take: limit,
 
         orderBy: {
-          createdAt: sortByDate,
+          position: 'asc',
         },
       }),
     ]);
@@ -204,6 +261,7 @@ export class AssetFieldDefinitionsService {
         isRequired: field.isRequired,
         placeholder: field.placeholder,
         options: field.options,
+        position: field.position,
       })),
 
       meta: {
@@ -294,8 +352,70 @@ export class AssetFieldDefinitionsService {
       where: { id },
     });
 
+    // Reajustar el orden de los campos restantes para evitar huecos (gaps)
+    await this.prisma.assetFieldDefinition.updateMany({
+      where: {
+        assetTypeId: existing.assetTypeId,
+        position: {
+          gt: existing.position,
+        },
+      },
+      data: {
+        position: {
+          decrement: 1,
+        },
+      },
+    });
+
     return {
       message: 'Asset field definition deleted successfully',
     };
+  }
+
+  async reorder(dto: ReorderAssetFieldDefinitionsDto) {
+    const updateQueries: any[] = dto.ids.map((id, index) =>
+      this.prisma.assetFieldDefinition.update({
+        where: {
+          id,
+          assetTypeId: dto.assetTypeId,
+        },
+        data: { position: index },
+      }),
+    );
+
+    // Si se envían indexCol o indexRow, actualizamos el metadata del AssetType correspondiente
+    if (dto.indexCol !== undefined || dto.indexRow !== undefined) {
+      const assetType = await this.prisma.assetType.findUnique({
+        where: { id: dto.assetTypeId },
+      });
+
+      if (assetType) {
+        const currentMetadata = (assetType.metadata as Record<string, any>) || {};
+        const updatedMetadata = {
+          ...currentMetadata,
+          ...(dto.indexCol !== undefined && { indexCol: dto.indexCol }),
+          ...(dto.indexRow !== undefined && { indexRow: dto.indexRow }),
+        };
+
+        updateQueries.push(
+          this.prisma.assetType.update({
+            where: { id: dto.assetTypeId },
+            data: { metadata: updatedMetadata },
+          }),
+        );
+      }
+    }
+
+    await this.prisma.$transaction(updateQueries);
+    return { message: 'Asset field definitions reordered successfully' };
+  }
+
+  getGridCombinations(count: number) {
+    const combinations: Array<{ columns: number; rows: number }> = [];
+    for (let c = count; c >= 1; c--) {
+      const r = Math.ceil(count / c);
+      combinations.push({ columns: c, rows: r });
+    }
+    return combinations;
   }
 }
