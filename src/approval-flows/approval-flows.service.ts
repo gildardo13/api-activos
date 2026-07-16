@@ -244,7 +244,7 @@ export class ApprovalFlowsService {
   async updateStatus(request: any) {
     try {
 
-      if (request.moduleAction.key === 'ASSIGNMENT' || request.moduleAction.key === 'assignment') {
+      if (request.moduleAction.id === this.assigmentId) {
         const approvalBody = await this.prisma.approvalFlowBody.findUnique({
           where: { id: request.clientReferenceId },
         });
@@ -371,7 +371,7 @@ export class ApprovalFlowsService {
     }
   }
 
-  async resolveReference(clientReferenceId: string, actionKey: string): Promise<{ description: string }> {
+  async resolveReference(clientReferenceId: string, actionKey: string, moduleActionId?: string): Promise<{ description: string }> {
     try {
       const key = (actionKey || '').toUpperCase();
       let description = 'N/A';
@@ -390,7 +390,25 @@ export class ApprovalFlowsService {
 
       const shortId = realReferenceId.slice(0, 8);
 
-      if (key === 'ASSIGNMENT') {
+      let isAssignment = false;
+      let isChanges = false;
+      let isUpdate = false;
+
+      if (moduleActionId) {
+        if (moduleActionId === this.assigmentId) {
+          isAssignment = true;
+        } else if (moduleActionId === this.changesId) {
+          isChanges = true;
+        } else if (moduleActionId === this.updateId) {
+          isUpdate = true;
+        }
+      }
+
+
+
+
+
+      if (isAssignment) {
         const assignment = await this.prisma.assetAssignment.findUnique({
           where: { id: realReferenceId },
           include: {
@@ -417,7 +435,7 @@ export class ApprovalFlowsService {
         } else {
           description = `Asignación (${shortId})`;
         }
-      } else if (key === 'CHANGES') {
+      } else if (isChanges) {
         const document = await this.prisma.assetDocument.findUnique({
           where: { id: realReferenceId },
           include: {
@@ -434,7 +452,7 @@ export class ApprovalFlowsService {
         } else {
           description = `Documento (${shortId})`;
         }
-      } else if (key === 'UPDATE' || key === 'UPDATE_INFO' || key === 'ACTIVE_MODIFICATION') {
+      } else if (isUpdate) {
         const asset = await this.prisma.asset.findUnique({
           where: { id: realReferenceId },
         });
@@ -453,7 +471,7 @@ export class ApprovalFlowsService {
     }
   }
 
-  async resolveReferencesBulk(items: Array<{ id: string; key: string }>): Promise<Record<string, string>> {
+  async resolveReferencesBulk(items: Array<{ id: string; key: string; moduleActionId?: string }>): Promise<Record<string, string>> {
     const results: Record<string, string> = {};
     if (!items || !Array.isArray(items) || items.length === 0) {
       return results;
@@ -466,7 +484,7 @@ export class ApprovalFlowsService {
         where: { id: { in: inputIds } },
       });
 
-      const bodyMap = new Map(approvalBodies.map(b => [b.id, b.idReference]));
+      const bodyMap = new Map(approvalBodies.map(b => [b.id, b]));
 
       // Separar los IDs reales por tipo de entidad para hacer consultas agrupadas (bulk)
       const assignmentIds: string[] = [];
@@ -476,15 +494,35 @@ export class ApprovalFlowsService {
       const resolvedIdToInputId = new Map<string, string>();
 
       for (const item of items) {
-        const realId = bodyMap.get(item.id) || item.id;
+        const approvalBody = bodyMap.get(item.id);
+        const realId = approvalBody?.idReference || item.id;
         resolvedIdToInputId.set(realId, item.id);
 
         const key = (item.key || '').toUpperCase();
-        if (key === 'ASSIGNMENT') {
+        
+        let isAssignment = false;
+        let isChanges = false;
+        let isUpdate = false;
+
+        if (item.moduleActionId) {
+          if (item.moduleActionId === this.assigmentId) {
+            isAssignment = true;
+          } else if (item.moduleActionId === this.changesId) {
+            isChanges = true;
+          } else if (item.moduleActionId === this.updateId) {
+            isUpdate = true;
+          }
+        }
+
+
+
+
+
+        if (isAssignment) {
           assignmentIds.push(realId);
-        } else if (key === 'CHANGES') {
+        } else if (isChanges) {
           documentIds.push(realId);
-        } else if (key === 'UPDATE') {
+        } else if (isUpdate) {
           assetIds.push(realId);
         } else {
           results[item.id] = `Referencia (${realId.slice(0, 8)})`;
@@ -543,14 +581,35 @@ export class ApprovalFlowsService {
       // Rellenar fallbacks para los IDs que no se pudieron encontrar en la base de datos
       for (const item of items) {
         if (!results[item.id]) {
-          const realId = bodyMap.get(item.id) || item.id;
+          const approvalBody = bodyMap.get(item.id);
+          const realId = approvalBody?.idReference || item.id;
           const shortId = realId.slice(0, 8);
+          
           const key = (item.key || '').toUpperCase();
-          if (key === 'ASSIGNMENT') {
+          
+          let isAssignment = false;
+          let isChanges = false;
+          let isUpdate = false;
+
+          if (item.moduleActionId) {
+            if (item.moduleActionId === this.assigmentId) {
+              isAssignment = true;
+            } else if (item.moduleActionId === this.changesId) {
+              isChanges = true;
+            } else if (item.moduleActionId === this.updateId) {
+              isUpdate = true;
+            }
+          }
+
+
+
+
+
+          if (isAssignment) {
             results[item.id] = `Asignación (${shortId})`;
-          } else if (key === 'CHANGES') {
+          } else if (isChanges) {
             results[item.id] = `Documento (${shortId})`;
-          } else if (key === 'UPDATE') {
+          } else if (isUpdate) {
             results[item.id] = `Activo (${shortId})`;
           }
         }
