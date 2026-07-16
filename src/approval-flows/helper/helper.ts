@@ -4,7 +4,7 @@ export const resolveModuleAction = (request: CreateSolicitudDto, atribute?: stri
     if (request.metadata?.typeAction === "UPDATE" || atribute === "UPDATE") {
         request.moduleActionId = process.env.MODULE_ACTION_UPDATE_ID || "";
     } 
-    else if (atribute === "ASSIGNMENT") {
+    else if (request.metadata?.typeAction === "ASSIGNMENT" || atribute === "ASSIGNMENT") {
         request.moduleActionId = process.env.MODULE_ACTION_ASSIGNMENT_ID || "";
     } 
     else if (request.metadata?.typeAction === "CHANGES" || atribute === "CHANGES") {
