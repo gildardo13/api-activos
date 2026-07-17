@@ -237,3 +237,30 @@ model Project{
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Catalog {
+  id String @id @default(uuid())
+  key String        @unique
+  name String
+  description String?
+  status Status @default(ACTIVE)
+
+  items       CatalogItem[]
+
+  @@map("catalogs")
+}
+
+model CatalogItem {
+  id          String        @id @default(uuid())
+  catalogId   String        @map("catalog_id")
+  key         String
+  name        String
+  description String?
+  config      Json? 
+  status      Status @default(ACTIVE)
+
+  catalog     Catalog       @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, key])
+  @@map("catalog_items")
+}
