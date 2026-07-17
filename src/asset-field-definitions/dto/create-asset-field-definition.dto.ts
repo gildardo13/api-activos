@@ -13,6 +13,8 @@ export enum FieldType {
   NUMBER = 'NUMBER',
   SELECT = 'SELECT',
   DATE = 'DATE',
+  LOCATION = 'LOCATION',
+  CURRENCY = 'CURRENCY',
   FILE = 'FILE',
 }
 
@@ -41,4 +43,9 @@ export class CreateAssetFieldDefinitionDto {
   @IsNumber()
   @IsOptional()
   position?: number;
+
+
+  @IsObject()
+  @IsOptional()
+  metadata?: any;
 }

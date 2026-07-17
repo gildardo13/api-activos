@@ -135,6 +135,7 @@ model AssetFieldDefinition {
   fieldType String
   placeholder String?
   options Json?
+  metadata Json?    @map("metadata")
   isRequired Boolean
   position Int?
   

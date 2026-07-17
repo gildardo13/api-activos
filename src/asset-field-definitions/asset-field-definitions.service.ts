@@ -55,6 +55,7 @@ export class AssetFieldDefinitionsService {
         placeholder: dto.placeholder,
         isRequired: dto.isRequired,
         options: dto.options,
+        metadata: dto.metadata,
         position: dto.position !== undefined && dto.position !== null ? dto.position : nextOrder,
       },
     });
@@ -198,6 +199,7 @@ export class AssetFieldDefinitionsService {
         placeholder: field.placeholder,
         options: field.options,
         position: field.position,
+        metadata: field.metadata,
       })),
       metadata: {
         indexCol: metadata.indexCol ?? 0,
@@ -262,6 +264,7 @@ export class AssetFieldDefinitionsService {
         placeholder: field.placeholder,
         options: field.options,
         position: field.position,
+        metadata: field.metadata,
       })),
 
       meta: {

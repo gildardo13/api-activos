@@ -803,6 +803,12 @@ export class AssetsService {
         finalLabel += ' (DD/MM/AAAA)';
       }
 
+      if (field.fieldType === 'CURRENCY') {
+        const metadata = (field.metadata as Record<string, any>) || {};
+        const currencyCode = metadata.currencyCode || 'MXN';
+        finalLabel += ` (${currencyCode.toUpperCase()})`;
+      }
+
       headers.push(finalLabel);
     }
     const wb = XLSX.utils.book_new();
@@ -982,6 +988,29 @@ export class AssetsService {
                 error: `El campo "${fieldDef.label}" debe ser un número válido (recibido: "${userVal}")`,
               });
               validationError = true;
+            }
+          }
+
+          if (fieldDef.fieldType === 'CURRENCY') {
+            const cleanVal = strVal.replace(/[$,€,£,¥]/g, '').replace(/,/g, '').trim();
+            if (isNaN(Number(cleanVal))) {
+              errors.push({
+                row: rowNumber,
+                error: `El campo "${fieldDef.label}" debe ser un valor decimal de moneda válido (recibido: "${userVal}")`,
+              });
+              validationError = true;
+            } else {
+              const parts = cleanVal.split('.');
+              const hasMoreThanTwoDecimals = parts.length > 1 && parts[1].replace(/0+$/, '').length > 2;
+              if (hasMoreThanTwoDecimals) {
+                errors.push({
+                  row: rowNumber,
+                  error: `El campo "${fieldDef.label}" no debe tener más de 2 decimales (recibido: "${userVal}")`,
+                });
+                validationError = true;
+              } else {
+                assetData.dynamicAttributes[fieldDef.id] = cleanVal;
+              }
             }
           }
 
