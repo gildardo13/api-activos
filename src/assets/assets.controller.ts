@@ -144,6 +144,8 @@ export class AssetsController {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="instrucciones_archivos.xlsx"`,
         'Content-Length': result.data.length,
+        'Access-Control-Expose-Headers': 'x-created-assets',
+        'x-created-assets': JSON.stringify((result as any).assets),
       });
       return res.end(result.data);
     }

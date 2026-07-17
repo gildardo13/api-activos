@@ -821,7 +821,7 @@ export class AssetsService {
     return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
   }
 
-  async bulkUpload(file: Express.Multer.File, assetTypeId: string): Promise<{ success: boolean; data?: Buffer; message: string; pendingFiles: boolean }> {
+  async bulkUpload(file: Express.Multer.File, assetTypeId: string): Promise<{ success: boolean; data?: Buffer; message: string; pendingFiles: boolean; assets?: any[] }> {
     const assetType = await this.prisma.assetType.findUnique({
       where: { id: assetTypeId },
       include: { assetFieldDefinitions: true },
@@ -1176,6 +1176,7 @@ export class AssetsService {
         data: instrBuffer,
         message: `Se crearon ${createdAssets.length} activos. Se requieren archivos.`,
         pendingFiles: true,
+        assets: createdAssets.map((a) => ({ id: a.id, code: a.code, name: a.name })),
       };
     }
 
@@ -1183,9 +1184,10 @@ export class AssetsService {
       success: true,
       message: `Se cargaron ${createdAssets.length} activos exitosamente`,
       pendingFiles: false,
+      assets: createdAssets.map((a) => ({ id: a.id, code: a.code, name: a.name })),
     };
   }
-  async bulkUploadFiles(): Promise<{ success: boolean; uploadedCount: number; uploadedFiles: any[]; unmatchedFiles: string[] }> {
+  async bulkUploadFiles(): Promise<{ success: boolean; uploadedCount: number; uploadedFiles: any[]; unmatchedFiles: string[]; assets?: any[] }> {
     const uploadedFiles = [];
     const unmatchedFiles = [];
     let uploadedCount = 0;
@@ -1351,11 +1353,14 @@ export class AssetsService {
       uploadedCount++;
     }
 
+    const uniqueAssets = Array.from(new Map(filesToUpload.map(item => [item.asset.id, item.asset])).values());
+
     return {
       success: true,
       uploadedCount,
       uploadedFiles,
       unmatchedFiles,
+      assets: uniqueAssets.map((a: any) => ({ id: a.id, code: a.code, name: a.name })),
     };
   }
 }
