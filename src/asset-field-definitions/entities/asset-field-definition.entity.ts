@@ -14,6 +14,7 @@ export enum FieldType {
   DATE = 'DATE',
   LOCATION = 'LOCATION',
   CURRENCY = 'CURRENCY',
+  GALLERY = 'GALLERY',
   FILE = 'FILE',
 }
 

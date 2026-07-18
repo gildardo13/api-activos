@@ -146,15 +146,15 @@ export class ApprovalFlowsService {
 
   async createSolicitud(request: CreateSolicitudDto, moduleId: string) {
     try {
-      /*const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
+      const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
         headers: this.buildHeaders(),
       });
       if (!res.data || (Array.isArray(res.data) && res.data.length === 0) || (typeof res.data === "object" && Object.keys(res.data).length === 0)) {
         return [];
       }
-      return res.data;*/
+      return res.data;
 
-      return [];
+      //return [];
 
 
     } catch (err: any) {
