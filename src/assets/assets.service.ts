@@ -80,6 +80,7 @@ export class AssetsService {
         description: dto.description,
         status: dto.status,
         lastLocation: dto.lastLocation,
+        mainPhotograph: dto.mainPhotograph,
         attributesData: dto.attributesData as Prisma.InputJsonValue,
         gpsDeviceId: dto.gpsDeviceId || null,
       },
@@ -435,6 +436,7 @@ export class AssetsService {
           lastLocation: dto.lastLocation,
           statusApproval: dto.statusApproval,
           commentsApproval: dto.commentsApproval,
+          mainPhotograph: dto.mainPhotograph,
           gpsDeviceId: dto.gpsDeviceId || null,
 
         },
@@ -536,6 +538,7 @@ export class AssetsService {
         lastLocation: dto.lastLocation,
         attributesData: updatedAttributes as Prisma.InputJsonValue,
         statusApproval: dto.statusApproval,
+        mainPhotograph: dto.mainPhotograph,
         commentsApproval: dto.commentsApproval,
         gpsDeviceId: dto.gpsDeviceId || null,
 
@@ -1150,6 +1153,7 @@ export class AssetsService {
             status: StatusAsset.ACTIVE,
             lastLocation: parsedAsset.lastLocation || null,
             attributesData: attributesData as Prisma.InputJsonValue,
+            mainPhotograph: parsedAsset.mainPhotograph,
             gpsDeviceId: parsedAsset.gpsDeviceId,
           },
         });

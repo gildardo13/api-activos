@@ -40,6 +40,10 @@ export class CreateAssetDto {
   lastLocation?: string;
 
   @IsOptional()
+  @IsString()
+  mainPhotograph?: string;
+
+  @IsOptional()
   attributesData?: any;
 
   @IsOptional()

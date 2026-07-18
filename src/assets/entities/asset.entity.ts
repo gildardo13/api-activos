@@ -9,7 +9,7 @@ export enum Status {
 
 export class Asset {
   id: string;
-  
+
   @IsString()
   @IsOptional()
   assetTypeId?: string;
@@ -37,6 +37,10 @@ export class Asset {
   @IsOptional()
   @IsString()
   lastLocation?: string;
+
+  @IsOptional()
+  @IsString()
+  mainPhotograph?: string;
 
   @IsOptional()
   attributesData?: Record<string, unknown>;
