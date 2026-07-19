@@ -79,6 +79,7 @@ model Asset {
   gpsDevice GpsDevice? @relation(fields: [gpsDeviceId], references: [id])
   assetTelemetryLogs  AssetTelemetryLog[]
   assetDocuments AssetDocument[]
+  assetFolders       AssetFolder[]
   assetGeofences AssetGeofence[]
   assetAssignments AssetAssignment[]
   assetType AssetType @relation(fields: [assetTypeId], references: [id])
@@ -237,6 +238,42 @@ model Project{
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model AssetFolder {
+  id          String        @id @default(uuid())
+  assetId     String
+  name        String
+  
+  parentId    String?       
+  parent      AssetFolder?  @relation("SubCarpetas", fields: [parentId], references: [id], onDelete: Cascade)
+  subfolders  AssetFolder[] @relation("SubCarpetas")
+
+  asset       Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  files       AssetFile[]   
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([assetId])
+  @@index([parentId])
+}
+
+model AssetFile {
+  id        String      @id @default(uuid())
+  folderId  String      
+  name      String      
+  fileUrl   String      
+  fileType  String?     
+  sizeBytes Int?        
+  
+
+  folder    AssetFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([folderId])
 }
 
 model Catalog {

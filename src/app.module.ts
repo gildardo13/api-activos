@@ -28,6 +28,7 @@ import { ApprovalFlowBodyModule } from './approval-flow-body/approval-flow-body.
 import { CamerasModule } from './cameras/cameras.module';
 import { HikConnectModule } from './hik-connect/hik-connect.module';
 import { CatalogTypeModule } from './catalog-type/catalog-type.module';
+import { AssetDriveModule } from './asset-drive/asset-drive.module';
 
 @Module({
   controllers: [AppController],
@@ -58,6 +59,7 @@ import { CatalogTypeModule } from './catalog-type/catalog-type.module';
     CamerasModule,
     HikConnectModule,
     CatalogTypeModule,
+    AssetDriveModule,
   ],
   providers: [],
 })
