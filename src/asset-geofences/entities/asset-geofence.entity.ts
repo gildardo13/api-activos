@@ -3,6 +3,7 @@ export class AssetGeofence {
     assetId?: string;
     name: string;
     coordinates: string;
+    location: string;
     status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
 
     createdAt: Date;

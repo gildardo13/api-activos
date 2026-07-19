@@ -1275,6 +1275,7 @@ export class AssetsService {
       localPath: string;
       fileName: string;
       isGallery: boolean;
+      maxLength?: number;
     }> = [];
 
     // 2. Validar cada activo y sus requerimientos de archivos
@@ -1348,10 +1349,17 @@ export class AssetsService {
             });
 
             // Leer límite de la metadata del campo (por defecto 5)
-            const metadata = fieldDef.metadata as any;
+            let metadata = fieldDef.metadata as any;
+            if (typeof metadata === 'string') {
+              try {
+                metadata = JSON.parse(metadata);
+              } catch (e) {
+                console.error("Error parsing field definition metadata:", e);
+              }
+            }
             let maxLength = 5;
             if (metadata && typeof metadata === 'object') {
-              const limit = parseInt(metadata.lengthImg, 10);
+              const limit = parseInt(metadata.lengthImg || metadata.length, 10);
               if (!isNaN(limit)) {
                 maxLength = limit;
               }
@@ -1371,6 +1379,7 @@ export class AssetsService {
                   localPath: path.join(galleryFolder, file),
                   fileName: file,
                   isGallery: true,
+                  maxLength,
                 });
               }
             }
@@ -1389,7 +1398,30 @@ export class AssetsService {
 
     // 3. Subir los archivos encontrados a Cloudinary y actualizar la DB
     for (const item of filesToUpload) {
-      const { asset, attribute, attrIndex, localPath, fileName, isGallery } = item;
+      const { asset, attribute, attrIndex, localPath, fileName, isGallery, maxLength } = item;
+
+      // Obtener el activo más reciente para verificar límites y evitar sobreescritura
+      const dbAsset = await this.prisma.asset.findUnique({ where: { id: asset.id } });
+      if (!dbAsset) continue;
+      
+      const dbAttributes = dbAsset.attributesData as any[];
+      const attrIndexInDb = dbAttributes.findIndex(a => a.idField === attribute.idField);
+      if (attrIndexInDb === -1) {
+        console.warn(`Atributo no encontrado por idField: ${attribute.idField}`);
+        continue;
+      }
+
+      if (isGallery) {
+        const updatedAttr = { ...dbAttributes[attrIndexInDb] };
+        const currentGalleryValue = Array.isArray(updatedAttr.value) ? updatedAttr.value : [];
+        
+        const limit = maxLength ?? 5;
+        if (currentGalleryValue.length >= limit) {
+          console.warn(`Se omitió el archivo ${fileName} para el activo ${asset.code} porque la galería ya alcanzó el límite de ${limit} imágenes.`);
+          continue;
+        }
+      }
+
       const fileBuffer = fs.readFileSync(localPath);
 
       const fakeFile = {
@@ -1401,12 +1433,16 @@ export class AssetsService {
       // Subir a Cloudinary
       const secureUrl = await this.cloudinaryService.uploadFile(fakeFile, 'assets');
 
+      // Volver a obtener el activo más reciente para guardar el valor
+      const latestAsset = await this.prisma.asset.findUnique({ where: { id: asset.id } });
+      if (!latestAsset) continue;
+      const latestAttributes = latestAsset.attributesData as any[];
+      const targetIndex = latestAttributes.findIndex(a => a.idField === attribute.idField);
+      if (targetIndex === -1) continue;
+
+      const updatedAttr = { ...latestAttributes[targetIndex] };
+
       if (isGallery) {
-        // Obtener el activo más reciente para evitar sobreescribir datos concurrentes
-        const dbAsset = await this.prisma.asset.findUnique({ where: { id: asset.id } });
-        const dbAttributes = dbAsset.attributesData as any[];
-        const updatedAttr = { ...dbAttributes[attrIndex] };
-        
         let currentGalleryValue = Array.isArray(updatedAttr.value) ? updatedAttr.value : [];
         const nextPosition = currentGalleryValue.length;
 
@@ -1417,12 +1453,12 @@ export class AssetsService {
         });
 
         updatedAttr.value = currentGalleryValue;
-        dbAttributes[attrIndex] = updatedAttr;
+        latestAttributes[targetIndex] = updatedAttr;
 
         await this.prisma.asset.update({
           where: { id: asset.id },
           data: {
-            attributesData: dbAttributes as Prisma.InputJsonValue,
+            attributesData: latestAttributes as Prisma.InputJsonValue,
           },
         });
       } else {
@@ -1438,18 +1474,16 @@ export class AssetsService {
         });
 
         // Actualizar el atributo en el activo
-        const attributes = asset.attributesData as any[];
-        const updatedAttr = { ...attributes[attrIndex] };
         updatedAttr.value = doc.id;
         if (updatedAttr.pendingFileName !== undefined) {
           delete updatedAttr.pendingFileName;
         }
-        attributes[attrIndex] = updatedAttr;
+        latestAttributes[targetIndex] = updatedAttr;
 
         await this.prisma.asset.update({
           where: { id: asset.id },
           data: {
-            attributesData: attributes as Prisma.InputJsonValue,
+            attributesData: latestAttributes as Prisma.InputJsonValue,
           },
         });
       }

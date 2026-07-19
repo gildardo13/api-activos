@@ -61,6 +61,7 @@ export class AssetGeofencesService {
         assetId: dto.assetId ?? null,
         name: dto.name,
         coordinates: dto.coordinates as any,
+        location: dto.location ?? null,
         status: dto.status ?? 'ACTIVE',
       },
     });
@@ -168,6 +169,7 @@ export class AssetGeofencesService {
       data: {
         name: dto.name,
         coordinates: dto.coordinates ? dto.coordinates as any : undefined,
+        location: dto.location,
         status: dto.status,
       },
     });

@@ -21,6 +21,9 @@ export class CreateAssetGeofenceDto {
   @IsArray()
   coordinates: CoordinatesDto[];
 
+  @IsString()
+  location: string;
+
   @IsEnum(['ACTIVE', 'INACTIVE', 'DELETED'])
   @IsOptional()
   status?: 'ACTIVE' | 'INACTIVE' | 'DELETED' = 'ACTIVE';
