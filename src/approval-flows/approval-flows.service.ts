@@ -291,12 +291,14 @@ export class ApprovalFlowsService {
             await this.geocercaService.update(dtoGeocerca.idExiting, {
               name: dtoGeocerca.name,
               coordinates: dtoGeocerca.coordinates,
+              location: dtoGeocerca.location,
             });
           } else {
             await this.geocercaService.create({
               assetId: realReferenceId,
               name: dtoGeocerca.name,
               coordinates: dtoGeocerca.coordinates,
+              location: dtoGeocerca.location,
               status: dtoGeocerca.status,
             });
           }
