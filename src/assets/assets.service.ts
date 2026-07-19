@@ -162,11 +162,21 @@ export class AssetsService {
       sortByDate = 'desc',
       status,
       clasificationType,
+      groupId,
     } = query;
 
     const skip = (page - 1) * limit;
 
     const where: any = {};
+
+    // ── Filtro por grupo ──────────────────────────────
+    if (groupId) {
+      where.groups = {
+        some: {
+          id: groupId,
+        },
+      };
+    }
 
     // ── Filtro por estado ─────────────────────────────
     if (status) {

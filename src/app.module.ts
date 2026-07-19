@@ -29,6 +29,7 @@ import { CamerasModule } from './cameras/cameras.module';
 import { HikConnectModule } from './hik-connect/hik-connect.module';
 import { CatalogTypeModule } from './catalog-type/catalog-type.module';
 import { AssetDriveModule } from './asset-drive/asset-drive.module';
+import { AssetGroupModule } from './asset-group/asset-group.module';
 
 @Module({
   controllers: [AppController],
@@ -60,6 +61,7 @@ import { AssetDriveModule } from './asset-drive/asset-drive.module';
     HikConnectModule,
     CatalogTypeModule,
     AssetDriveModule,
+    AssetGroupModule,
   ],
   providers: [],
 })
