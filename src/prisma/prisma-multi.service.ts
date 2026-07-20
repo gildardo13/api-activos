@@ -18,7 +18,7 @@ export class PrismaMultiService extends BasePrismaMultiService {
       return `postgresql://postgres:${pass_db}@database-1.c5gm0gwc8i0f.us-east-1.rds.amazonaws.com:${port_db}/${empresa}_activos`;
     }
 
-    if (process.env.CONTROL_ACTIVOS_ENV === 'dev') {
+    if (['dev', 'test'].includes(process.env.CONTROL_ACTIVOS_ENV)) {
       return databaseDev;
     }
     return databaseDev;
