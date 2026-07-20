@@ -92,6 +92,18 @@ export class AssetGeofencesService {
     assetIds: string[];
   }) {
     this.validateCoordinates(dto.coordinates);
+
+    // Delete geofences with this name for assets that were deselected (not in assetIds)
+    await this.prisma.assetGeofence.deleteMany({
+      where: {
+        name: dto.name,
+        assetId: {
+          notIn: dto.assetIds,
+          not: null,
+        },
+      },
+    });
+
     const results = [];
     for (const assetId of dto.assetIds) {
       const existing = await this.prisma.assetGeofence.findFirst({
