@@ -41,4 +41,8 @@ export class QueryAssetsDto {
   @IsOptional()
   @IsString()
   groupId?: string;
+
+  @IsOptional()
+  @IsString()
+  assetTypeId?: string;
 }

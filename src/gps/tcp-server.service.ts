@@ -6,6 +6,7 @@ import { parseAvlData } from './helpers/teltonika-parser';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { StatusReturn } from '@prisma/client';
 import { GpsBody } from './dto/type';
+import { calculateTripName } from '../asset-telemetry-logs/helper/helper';
 
 @Injectable()
 export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -251,9 +252,10 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             where: {
                 assetId: asset.id,
             },
-            orderBy: {
-                createdAt: 'desc',
-            },
+            orderBy: [
+                { recordedAt: 'desc' },
+                { createdAt: 'desc' },
+            ],
         });
 
         if (lastTelemetry) {
@@ -282,7 +284,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             }
           
             //.APAGADO
-            const isStillOff = lastVoltage <= 5 && (record.externalVoltage === 0 || record.externalVoltage === null);
+            const isStillOff = record.ignition === 0 && lastMetadata.ignition === 0 && lastVoltage <= 5 && (record.externalVoltage === 0 || record.externalVoltage === null);
             if (isStillOff && !hasStateChanged) {
                 this.logger.warn(`[TCP GPS] Vehículo ya estaba apagado (IMEI: ${imei}). Omitiendo reporte.`);
                 this.logToFile(`[TCP GPS] WARN [${imei}]: Vehículo ya estaba apagado. Omitiendo reporte.`);
@@ -329,12 +331,15 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                 finalBatteryVoltage = record.batteryVoltage / 1000;
             }
 
+            const tripName = await calculateTripName(tx, asset.id, record.ignition, lastTelemetry);
+
             const newTelemetry = await tx.assetTelemetryLog.create({
                 data: {
                     assetId: asset.id,
                     latitud: String(record.latitude),
                     longitud: String(record.longitude),
                     speed: String(record.speed),
+                    tripName: tripName,
                     imei: imei,
                     metadata: {
                         din1: record.din1,
@@ -419,9 +424,10 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             where: {
                 assetId: asset.id,
             },
-            orderBy: {
-                createdAt: 'desc',
-            },
+            orderBy: [
+                { recordedAt: 'desc' },
+                { createdAt: 'desc' },
+            ],
         });
 
         if (lasTelemetry) {
@@ -451,7 +457,7 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
                 return null;
             }
             //.APAGADO
-            const isStillOff = lastVoltage <= 5 && (body.externalVoltage === 0 || body.externalVoltage === null);
+            const isStillOff = body.ignition === 0 && lastMetadata.ignition === 0 && lastVoltage <= 5 && (body.externalVoltage === 0 || body.externalVoltage === null);
             if (isStillOff && !hasStateChanged) {
                 this.logger.warn(`Vehículo ya estaba apagado (REST). Omitiendo reporte.`);
                 return null;
@@ -468,12 +474,15 @@ export class GpsService implements OnApplicationBootstrap, OnModuleDestroy {
             const finalExternalVoltage = body.externalVoltage !== undefined ? body.externalVoltage : null;
             const finalBatteryVoltage = body.batteryVoltage !== undefined ? body.batteryVoltage : null;
 
+            const tripName = await calculateTripName(tx, asset.id, body.ignition, lasTelemetry);
+
             const newTelemetry = await tx.assetTelemetryLog.create({
                 data: {
                     assetId: asset.id,
                     latitud: String(body.latitude),
                     longitud: String(body.longitude),
                     speed: String(body.speed),
+                    tripName: tripName,
                     imei: body.imei,
                     metadata: {
                         din1: body.din1 !== undefined && body.din1 !== null ? body.din1 : body.ignition,

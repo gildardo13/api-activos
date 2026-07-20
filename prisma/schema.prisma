@@ -99,6 +99,7 @@ model AssetTelemetryLog {
   latitud String
   longitud String
   speed String
+  tripName String?
   imei String?
   metadata Json?    @map("metadata")
   recordedAt DateTime @default(now())
@@ -178,18 +179,20 @@ model AssetDocument {
 
 model AssetGeofence {
   id String @id @default(uuid())
-  assetId String
+  assetId String?
   name String
+  description String?
   coordinates Json?    @default("[]")
   location String?
+  isLimitMovible  Boolean  @default(false)
+  mainPhotograph String?
   status Status @default(ACTIVE)
-  asset Asset @relation(fields: [assetId], references: [id])
+  asset Asset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([assetId])
-
 }
 
 model AssetDocumentChunk {

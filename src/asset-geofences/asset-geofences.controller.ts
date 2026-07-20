@@ -33,10 +33,24 @@ export class AssetGeofencesController {
     );
   }
 
+  @Post('/assignToAssets')
+  @HttpCode(HttpStatus.OK)
+  assignToAssets(
+    @Body() body: any,
+  ) {
+    return this.assetGeofencesService.assignGeofenceToAssets(body);
+  }
+
   @Get('/getAllAssetGeofences')
   @HttpCode(HttpStatus.OK)
   findAllGeofences(@Query('search') search?: string) {
     return this.assetGeofencesService.findAllGeofences(search);
+  }
+
+  @Get('/getLimitedAreas')
+  @HttpCode(HttpStatus.OK)
+  findLimitedAreas(@Query('search') search?: string) {
+    return this.assetGeofencesService.findLimitedAreas(search);
   }
 
   @Get('/getAll')

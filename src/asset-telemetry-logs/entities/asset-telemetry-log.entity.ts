@@ -5,4 +5,5 @@ export class AssetTelemetryLog {
     longitud: string;
     speed: string;
     recordedAt: Date;
+    tripName: string;
 }

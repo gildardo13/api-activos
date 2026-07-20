@@ -45,6 +45,10 @@ export class CreateAssetTelemetryLogDto {
     @IsString()
     speed: string;
 
+    @IsString()
+    @IsOptional()
+    tripName: string;
+
     @IsObject()
     @IsOptional()
     @ValidateNested()

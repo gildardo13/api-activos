@@ -4,6 +4,7 @@ export class AssetGeofence {
     name: string;
     coordinates: string;
     location: string;
+    isLimitMovible: boolean; 
     status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
 
     createdAt: Date;

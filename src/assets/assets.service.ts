@@ -164,6 +164,7 @@ export class AssetsService {
       status,
       clasificationType,
       groupId,
+      assetTypeId,
     } = query;
 
     const skip = (page - 1) * limit;
@@ -179,6 +180,11 @@ export class AssetsService {
       };
     }
 
+    // ── Filtro por tipo de activo ─────────────────────
+    if (assetTypeId) {
+      where.assetTypeId = assetTypeId;
+    }
+
     // ── Filtro por estado ─────────────────────────────
     if (status) {
       where.status = status;
@@ -187,6 +193,7 @@ export class AssetsService {
     // ── Filtro por tipo de clasificación ──────────────
     if (clasificationType) {
       where.assetType = {
+        ...where.assetType,
         clasificationType,
       };
     }
@@ -307,6 +314,56 @@ export class AssetsService {
 
   async findAllNoQuery() {
     const data = await this.prisma.asset.findMany({
+      include: {
+        assetType: true,
+        assetTelemetryLogs: true,
+        assetDocuments: true,
+        assetGeofences: true,
+        assetAssignments: true,
+        gpsDevice: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  }
+
+  async findAllIsLimit() {
+    const data = await this.prisma.asset.findMany({
+      where: {
+        assetGeofences: {
+          some: {
+            isLimitMovible: true,
+          },
+        },
+      },
+      include: {
+        assetType: true,
+        assetTelemetryLogs: true,
+        assetDocuments: true,
+        assetGeofences: {
+          where: {
+            isLimitMovible: true,
+          },
+        },
+        assetAssignments: true,
+        gpsDevice: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  }
+
+  async findAllMovable() {
+    const data = await this.prisma.asset.findMany({
+      where: {
+        assetType: {
+          clasificationType: 'MOVABLE',
+        },
+      },
       include: {
         assetType: true,
         assetTelemetryLogs: true,

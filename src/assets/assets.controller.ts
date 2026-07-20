@@ -60,6 +60,18 @@ export class AssetsController {
     return this.assetsService.findAllNoQuery();
   }
 
+  @Get('/find-all-is-limit')
+  @HttpCode(HttpStatus.OK)
+  findAllIsLimit() {
+    return this.assetsService.findAllIsLimit();
+  }
+
+  @Get('/find-all-movable')
+  @HttpCode(HttpStatus.OK)
+  findAllMovable() {
+    return this.assetsService.findAllMovable();
+  }
+
   @Get('/without-location-inactive-telemetry')
   @HttpCode(HttpStatus.OK)
   findWithoutLocationInactiveTelemetry(@Query('search') search?: string) {

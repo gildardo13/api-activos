@@ -46,25 +46,90 @@ export class AssetGeofencesService {
       if (!assetExist) {
         throw new BadRequestException('Asset not found');
       }
-    }
-    const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
-      where: {
-        name: dto.name,
-      },
-    });
-    if (assetGeofenceExist) {
-      throw new BadRequestException('Asset geofence already exists');
+      const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
+        where: {
+          assetId: dto.assetId,
+          name: dto.name,
+        },
+      });
+      if (assetGeofenceExist) {
+        throw new BadRequestException('Asset geofence already exists for this asset');
+      }
+    } else {
+      const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
+        where: {
+          name: dto.name,
+          assetId: null,
+        },
+      });
+      if (assetGeofenceExist) {
+        throw new BadRequestException('Asset geofence already exists');
+      }
     }
 
     return this.prisma.assetGeofence.create({
       data: {
-        assetId: dto.assetId ?? null,
+        assetId: dto.assetId ? dto.assetId : undefined,
         name: dto.name,
         coordinates: dto.coordinates as any,
         location: dto.location ?? null,
         status: dto.status ?? 'ACTIVE',
+        description: dto.description ?? null,
+        mainPhotograph: dto.mainPhotograph ?? null,
+        isLimitMovible: dto.isLimitMovible ?? false,
       },
     });
+  }
+
+  // ASSIGN GEOFENCE TO MULTIPLE ASSETS
+  async assignGeofenceToAssets(dto: {
+    name: string;
+    description?: string;
+    coordinates: CoordinatesDto[];
+    location?: string;
+    mainPhotograph?: string;
+    isLimitMovible?: boolean;
+    assetIds: string[];
+  }) {
+    this.validateCoordinates(dto.coordinates);
+    const results = [];
+    for (const assetId of dto.assetIds) {
+      const existing = await this.prisma.assetGeofence.findFirst({
+        where: {
+          assetId,
+          name: dto.name,
+        },
+      });
+      if (existing) {
+        const updated = await this.prisma.assetGeofence.update({
+          where: { id: existing.id },
+          data: {
+            coordinates: dto.coordinates as any,
+            location: dto.location,
+            description: dto.description,
+            mainPhotograph: dto.mainPhotograph,
+            isLimitMovible: dto.isLimitMovible ?? true,
+            status: 'ACTIVE',
+          },
+        });
+        results.push(updated);
+      } else {
+        const created = await this.prisma.assetGeofence.create({
+          data: {
+            assetId,
+            name: dto.name,
+            coordinates: dto.coordinates as any,
+            location: dto.location ?? null,
+            description: dto.description ?? null,
+            mainPhotograph: dto.mainPhotograph ?? null,
+            isLimitMovible: dto.isLimitMovible ?? true,
+            status: 'ACTIVE',
+          },
+        });
+        results.push(created);
+      }
+    }
+    return results;
   }
 
   // FIND ALL
@@ -93,6 +158,38 @@ export class AssetGeofencesService {
           clasificationType: 'INMOVABLE',
         },
       },
+    };
+
+    if (search) {
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+      ];
+    }
+
+    return this.prisma.assetGeofence.findMany({
+      where,
+      include: {
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async findLimitedAreas(search?: string) {
+    const where: any = {
+      isLimitMovible: true,
     };
 
     if (search) {
@@ -154,15 +251,6 @@ export class AssetGeofencesService {
     if (dto.coordinates) {
       this.validateCoordinates(dto.coordinates);
     }
-    /*const assetGeofenceExist = await this.prisma.assetGeofence.findFirst({
-      where: {
-        name: dto.name,
-      },
-    });
-    if (assetGeofenceExist) {
-      throw new BadRequestException('Asset geofence already exists');
-    }*/
-
 
     return this.prisma.assetGeofence.update({
       where: { id },
@@ -171,6 +259,9 @@ export class AssetGeofencesService {
         coordinates: dto.coordinates ? dto.coordinates as any : undefined,
         location: dto.location,
         status: dto.status,
+        description: dto.description,
+        mainPhotograph: dto.mainPhotograph,
+        isLimitMovible: dto.isLimitMovible !== undefined ? dto.isLimitMovible : undefined,
       },
     });
   }
