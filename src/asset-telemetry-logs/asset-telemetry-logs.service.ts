@@ -151,7 +151,7 @@ export class AssetTelemetryLogsService {
 
     return this.prisma.assetTelemetryLog.findMany({
       where,
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
   // 2. OBTENER HISTORIAL (Por Asset)
@@ -181,7 +181,7 @@ export class AssetTelemetryLogsService {
 
     return this.prisma.assetTelemetryLog.findMany({
       where,
-      orderBy: { recordedAt: 'asc' },
+      orderBy: { recordedAt: 'desc' },
     });
   }
 
