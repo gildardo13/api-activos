@@ -99,14 +99,14 @@ export class AssetsController {
     return this.assetsService.remove(id);
   }
 
-
   @Patch('/change-status/:id')
   @HttpCode(HttpStatus.OK)
   changeStatus(
     @Param('id') id: string,
     @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
+    @Body('metadata') metadata?: any,
   ) {
-    return this.assetsService.changeStatus(id, status);
+    return this.assetsService.changeStatus(id, status, metadata);
   }
 
   @Get('/bulk-template/:assetTypeId')

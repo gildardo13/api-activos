@@ -1,5 +1,5 @@
 import { StatusApproval } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsObject, IsOptional, IsString } from 'class-validator';
 
 export enum Status {
   ACTIVE = 'ACTIVE',
@@ -49,6 +49,10 @@ export class Asset {
   @IsEnum(StatusApproval)
   statusApproval?: StatusApproval;
 
+  @IsObject()
+  @IsOptional()
+  metadata?: any;
+  
   @IsOptional()
   @IsString()
   commentsApproval?: string;

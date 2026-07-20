@@ -70,6 +70,7 @@ model Asset {
   description String?
   status StatusAsset @default(ACTIVE)
   lastLocation String?
+  metadata Json?
   attributesData Json?
   mainPhotograph String?
   statusApproval StatusApproval?

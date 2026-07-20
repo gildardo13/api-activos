@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsObject, IsOptional, IsString } from 'class-validator';
 import { isAnyArrayBuffer } from 'util/types';
 
 export enum StatusAsset {
@@ -49,6 +49,10 @@ export class CreateAssetDto {
   @IsOptional()
   @IsEnum(StatusApproval)
   statusApproval?: StatusApproval;
+
+  @IsObject()
+  @IsOptional()
+  metadata?: any;
 
   @IsOptional()
   @IsString()

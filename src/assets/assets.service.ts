@@ -81,6 +81,7 @@ export class AssetsService {
         status: dto.status,
         lastLocation: dto.lastLocation,
         mainPhotograph: dto.mainPhotograph,
+        metadata:dto.metadata,
         attributesData: dto.attributesData as Prisma.InputJsonValue,
         gpsDeviceId: dto.gpsDeviceId || null,
       },
@@ -369,6 +370,7 @@ export class AssetsService {
   async findAllNoQuerynotAssigment() {
     const data = await this.prisma.asset.findMany({
       where: {
+        status: 'ACTIVE',
         assetAssignments: {
           none: {
             returnedAt: null,
@@ -447,6 +449,7 @@ export class AssetsService {
           statusApproval: dto.statusApproval,
           commentsApproval: dto.commentsApproval,
           mainPhotograph: dto.mainPhotograph,
+          metadata:dto.metadata,
           gpsDeviceId: dto.gpsDeviceId || null,
 
         },
@@ -550,6 +553,7 @@ export class AssetsService {
         statusApproval: dto.statusApproval,
         mainPhotograph: dto.mainPhotograph,
         commentsApproval: dto.commentsApproval,
+        metadata:dto.metadata,
         gpsDeviceId: dto.gpsDeviceId || null,
 
       },
@@ -655,6 +659,7 @@ export class AssetsService {
   async changeStatus(
     id: string,
     status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
+    metadata?: any,
   ) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Asset not found');
@@ -672,9 +677,18 @@ export class AssetsService {
       );
     }
 
+    const currentMetadata = asset.metadata && typeof asset.metadata === 'object' ? (asset.metadata as any) : {};
+    const updatedMetadata = metadata ? {
+      ...currentMetadata,
+      ...metadata,
+    } : asset.metadata;
+
     return this.prisma.asset.update({
       where: { id },
-      data: { status },
+      data: {
+        status,
+        metadata: updatedMetadata ?? undefined,
+      },
     });
   }
 
@@ -1164,6 +1178,7 @@ export class AssetsService {
             lastLocation: parsedAsset.lastLocation || null,
             attributesData: attributesData as Prisma.InputJsonValue,
             mainPhotograph: parsedAsset.mainPhotograph,
+            metadata:parsedAsset.metadata,
             gpsDeviceId: parsedAsset.gpsDeviceId,
           },
         });
