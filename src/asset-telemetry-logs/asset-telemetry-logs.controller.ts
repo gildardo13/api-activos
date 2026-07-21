@@ -58,8 +58,8 @@ export class AssetTelemetryLogsController {
     @Query('to') to?: string,
   ) {
      // PRUEBA POST
-    return this.assetTelemetryLogsService.findAllHistoryByAssetPrueba(assetId, from, to);
-    //return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId, from, to);
+    //return this.assetTelemetryLogsService.findAllHistoryByAssetPrueba(assetId, from, to);
+    return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId, from, to);
   }
 
   @Get('/getAll-inactive-telemetry-logs-by-asset/:assetId')
