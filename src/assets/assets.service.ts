@@ -506,8 +506,7 @@ export class AssetsService {
           statusApproval: dto.statusApproval,
           commentsApproval: dto.commentsApproval,
           mainPhotograph: dto.mainPhotograph,
-          metadata: dto.metadata,
-          gpsDeviceId: dto.gpsDeviceId || null,
+          gpsDeviceId: dto.gpsDeviceId !== undefined ? (dto.gpsDeviceId || null) : existing.gpsDeviceId,
 
         },
         include: {
@@ -610,8 +609,7 @@ export class AssetsService {
         statusApproval: dto.statusApproval,
         mainPhotograph: dto.mainPhotograph,
         commentsApproval: dto.commentsApproval,
-        metadata: dto.metadata,
-        gpsDeviceId: dto.gpsDeviceId || null,
+        gpsDeviceId: dto.gpsDeviceId !== undefined ? (dto.gpsDeviceId || null) : existing.gpsDeviceId,
 
       },
       include: {
