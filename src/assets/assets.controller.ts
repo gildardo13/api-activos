@@ -187,4 +187,11 @@ export class AssetsController {
 
     return res.end(buffer);
   }
+
+  @Get('/getTotalCash')
+  @HttpCode(HttpStatus.OK)
+  findAllTotal() {
+    return this.assetsService.getTotal();
+  }
+
 }

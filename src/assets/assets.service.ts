@@ -81,7 +81,7 @@ export class AssetsService {
         status: dto.status,
         lastLocation: dto.lastLocation,
         mainPhotograph: dto.mainPhotograph,
-        metadata:dto.metadata,
+        metadata: dto.metadata,
         attributesData: dto.attributesData as Prisma.InputJsonValue,
         gpsDeviceId: dto.gpsDeviceId || null,
       },
@@ -506,7 +506,7 @@ export class AssetsService {
           statusApproval: dto.statusApproval,
           commentsApproval: dto.commentsApproval,
           mainPhotograph: dto.mainPhotograph,
-          metadata:dto.metadata,
+          metadata: dto.metadata,
           gpsDeviceId: dto.gpsDeviceId || null,
 
         },
@@ -610,7 +610,7 @@ export class AssetsService {
         statusApproval: dto.statusApproval,
         mainPhotograph: dto.mainPhotograph,
         commentsApproval: dto.commentsApproval,
-        metadata:dto.metadata,
+        metadata: dto.metadata,
         gpsDeviceId: dto.gpsDeviceId || null,
 
       },
@@ -748,112 +748,6 @@ export class AssetsService {
       },
     });
   }
-
-
-  /*async createNewAsset(dto: CreateAssetDto) {
-    const { assetTypeId } = dto;
-
-    // 1. validar assetType
-    const assetType = await this.prisma.assetType.findUnique({
-      where: { id: assetTypeId },
-      include: { assetFieldDefinitions: true },
-    });
-
-    if (!assetType) {
-      throw new BadRequestException('Asset type does not exist');
-    }
-
-    const fields = assetType.assetFieldDefinitions;
-
-    // 2. validar required fields
-    const requiredFields = fields.filter((f) => f.isRequired);
-
-    for (const field of requiredFields) {
-      if (!(field.label in data_fields)) {
-        throw new BadRequestException(
-          `Missing required field: ${field.label}`,
-        );
-      }
-    }
-
-    // 3. validar tipos
-    for (const field of fields) {
-      const value = data_fields[field.label];
-
-      if (value === undefined) continue;
-
-      switch (field.fieldType) {
-        case 'NUMBER':
-          if (typeof value !== 'number') {
-            throw new BadRequestException(
-              `${field.label} must be number`,
-            );
-          }
-          break;
-
-        case 'TEXT':
-          if (typeof value !== 'string') {
-            throw new BadRequestException(
-              `${field.label} must be string`,
-            );
-          }
-          break;
-
-        case 'SELECT':
-          if (typeof value !== 'string') {
-            throw new BadRequestException(
-              `${field.label} must be string`,
-            );
-          }
-          break;
-
-        case 'DATE':
-          if (isNaN(Date.parse(value))) {
-            throw new BadRequestException(
-              `${field.label} must be valid date`,
-            );
-          }
-          break;
-
-        case 'FILE':
-          if (typeof value !== 'string') {
-            throw new BadRequestException(
-              `${field.label} must be file path or url`,
-            );
-          }
-          break;
-      }
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      const asset = await tx.asset.create({
-        data: {
-          assetTypeId,
-          code: dto.code,
-          name: dto.name,
-          description: dto.description,
-          status: dto.status,
-          lastLocation: dto.lastLocation,
-
-        },
-      });
-
-      // 5. documentos
-      if (file_fields?.length) {
-        await tx.assetDocument.createMany({
-          data: file_fields.map((file: any) => ({
-            assetId: asset.id,
-            fieldDefinitionId: file.fieldDefinitionId,
-            fileName: file.fileName,
-            fileUrl: file.fileUrl,
-          })),
-        });
-      }
-
-      return asset;
-    });
-  }*/
-
   async generateTemplate(assetTypeId: string): Promise<Buffer> {
     const assetType = await this.prisma.assetType.findUnique({
       where: { id: assetTypeId },
@@ -1235,7 +1129,7 @@ export class AssetsService {
             lastLocation: parsedAsset.lastLocation || null,
             attributesData: attributesData as Prisma.InputJsonValue,
             mainPhotograph: parsedAsset.mainPhotograph,
-            metadata:parsedAsset.metadata,
+            metadata: parsedAsset.metadata,
             gpsDeviceId: parsedAsset.gpsDeviceId,
           },
         });
@@ -1485,7 +1379,7 @@ export class AssetsService {
       // Obtener el activo más reciente para verificar límites y evitar sobreescritura
       const dbAsset = await this.prisma.asset.findUnique({ where: { id: asset.id } });
       if (!dbAsset) continue;
-      
+
       const dbAttributes = dbAsset.attributesData as any[];
       const attrIndexInDb = dbAttributes.findIndex(a => a.idField === attribute.idField);
       if (attrIndexInDb === -1) {
@@ -1496,7 +1390,7 @@ export class AssetsService {
       if (isGallery) {
         const updatedAttr = { ...dbAttributes[attrIndexInDb] };
         const currentGalleryValue = Array.isArray(updatedAttr.value) ? updatedAttr.value : [];
-        
+
         const limit = maxLength ?? 5;
         if (currentGalleryValue.length >= limit) {
           console.warn(`Se omitió el archivo ${fileName} para el activo ${asset.code} porque la galería ya alcanzó el límite de ${limit} imágenes.`);
@@ -1591,7 +1485,6 @@ export class AssetsService {
     };
   }
 
-  // GENERATE ASSET PDF BINARY (NESTJS BACKEND PDF GENERATION)
   async generateAssetPdf(id: string): Promise<{ buffer: Buffer; filename: string }> {
     const asset = await this.prisma.asset.findUnique({
       where: { id },
@@ -1667,4 +1560,72 @@ export class AssetsService {
       doc.end();
     });
   }
+
+
+  async getTotal(assetTypeId?: string) {
+    const camposTotalizables = await this.prisma.assetFieldDefinition.findMany({
+      where: {
+        ...(assetTypeId && { assetTypeId }),
+        metadata: {
+          path: ['isCountTotal'],
+          equals: true,
+        },
+      },
+      select: {
+        id: true,
+        label: true,
+      },
+    });
+
+    if (camposTotalizables.length === 0) {
+      return {
+        totalGeneral: 0,
+        camposSumados: [],
+        activos: [],
+      };
+    }
+
+    const idFieldsParaSumar = camposTotalizables.map((campo) => campo.id);
+
+    const assets = await this.prisma.asset.findMany({
+      where: {
+        ...(assetTypeId && { assetTypeId }),        
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        attributesData: true,
+      },
+    });
+
+    let totalGeneral = 0;
+
+    const activosConTotal = assets.map((asset) => {
+      let sumaActivo = 0;
+      if (Array.isArray(asset.attributesData)) {
+        for (const attr of asset.attributesData as Array<any>) {
+          if (idFieldsParaSumar.includes(attr.idField)) {
+            const valorNumerico = parseFloat(attr.value) || 0;
+            sumaActivo += valorNumerico;
+            totalGeneral += valorNumerico;
+          }
+        }
+      }
+
+      return {
+        id: asset.id,
+        code: asset.code,
+        name: asset.name,
+        totalCalculado: sumaActivo,
+        attributesData: asset.attributesData,
+      };
+    });
+    return {
+      totalGeneral,
+      camposSumados: camposTotalizables.map((c) => c.label), 
+      activos: activosConTotal,
+    };
+  }
+
 }
