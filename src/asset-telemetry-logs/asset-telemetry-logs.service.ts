@@ -305,6 +305,93 @@ export class AssetTelemetryLogsService {
       };
     });
   }
+
+  // 4.1 OBTENER LAS ÚLTIMAS UBICACIONES PARA ACTIVOS EN INACTIVE MONITOR (sin requerir lastLocation != null)
+  async findAllLatestInactive(search?: string) {
+    const whereAndClause: any[] = [
+      // Regla 1: Permite nulos y estados diferentes a PENDING
+      {
+        OR: [
+          { statusApproval: { not: 'PENDING' } },
+          { statusApproval: null }
+        ]
+      },
+
+      // Regla 2: Sin asignaciones pendientes
+      {
+        assetAssignments: {
+          none: {
+            statusApproval: {
+              in: ['PENDING']
+            }
+          }
+        }
+      }
+    ];
+
+    if (search) {
+      whereAndClause.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    // 1. Obtenemos los assets
+    const listAsset = await this.prisma.asset.findMany({
+      where: {
+        AND: whereAndClause
+      },
+      include: {
+        assetType: true
+      }
+    });
+
+    if (listAsset.length === 0) {
+      return [];
+    }
+
+    // 2. Extraemos los IDs de las telemetrías con lastLocation existente
+    const telemetryIdsWithLastLocation = listAsset
+      .map((item) => item.lastLocation)
+      .filter((id): id is string => typeof id === "string" && id.trim() !== "");
+
+    const telemetriesFromLastLocation = telemetryIdsWithLastLocation.length > 0
+      ? await this.prisma.assetTelemetryLog.findMany({
+          where: { id: { in: telemetryIdsWithLastLocation } },
+        })
+      : [];
+
+    const telemetryMap = new Map<string, any>();
+    telemetriesFromLastLocation.forEach((t) => telemetryMap.set(t.id, t));
+
+    // 3. Para cada activo, obtener su telemetría (usando lastLocation o fallback a la última registrada)
+    const results: any[] = [];
+
+    for (const asset of listAsset) {
+      let telemetry = asset.lastLocation ? telemetryMap.get(asset.lastLocation) : null;
+
+      if (!telemetry) {
+        telemetry = await this.prisma.assetTelemetryLog.findFirst({
+          where: { assetId: asset.id },
+          orderBy: [
+            { recordedAt: 'desc' },
+            { createdAt: 'desc' },
+          ],
+        });
+      }
+
+      if (telemetry) {
+        results.push({
+          ...this.adjustTelemetryOfflineStatus(telemetry),
+          assetId: asset,
+        });
+      }
+    }
+
+    return results;
+  }
   // OBTENER TODO (Logs históricos + Últimas ubicaciones agrupadas)
   async findAll() {
     // 1. Obtener todos los logs ordenados por fecha de forma descendente
@@ -542,11 +629,10 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
-    // Traemos todos los logs activos con tripName asignado, ordenados por fecha
+    // Traemos todos los logs con tripName asignado, ordenados por fecha
     const logs = await this.prisma.assetTelemetryLog.findMany({
       where: {
         assetId,
-        isActive: true,
         tripName: { not: null },
       },
       orderBy: { createdAt: 'asc' },

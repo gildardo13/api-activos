@@ -44,6 +44,12 @@ export class AssetTelemetryLogsController {
     return this.assetTelemetryLogsService.findAllLatest(search);
   }
 
+  @Get('/getall-latest-inactive-telemetry-logs')
+  @HttpCode(HttpStatus.OK)
+  findAllLatestInactive(@Query('search') search?: string) {
+    return this.assetTelemetryLogsService.findAllLatestInactive(search);
+  }
+
   @Get('/getAll-telemetry-logs-by-asset/:assetId')
   @HttpCode(HttpStatus.OK)
   findAllHistoryByAsset(
@@ -52,8 +58,8 @@ export class AssetTelemetryLogsController {
     @Query('to') to?: string,
   ) {
      // PRUEBA POST
-    //return this.assetTelemetryLogsService.findAllHistoryByAssetPrueba(assetId, from, to);
-    return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId, from, to);
+    return this.assetTelemetryLogsService.findAllHistoryByAssetPrueba(assetId, from, to);
+    //return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId, from, to);
   }
 
   @Get('/getAll-inactive-telemetry-logs-by-asset/:assetId')
