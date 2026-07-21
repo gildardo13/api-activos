@@ -134,7 +134,11 @@ export class AssetTelemetryLogsController {
 
   @Get('/getAll-trips-by-asset/:assetId')
   @HttpCode(HttpStatus.OK)
-  findTripsByAsset(@Param('assetId') assetId: string) {
-    return this.assetTelemetryLogsService.findTripsByAsset(assetId);
+  findTripsByAsset(
+    @Param('assetId') assetId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.assetTelemetryLogsService.findTripsByAsset(assetId, from, to);
   }
 }

@@ -620,7 +620,7 @@ export class AssetTelemetryLogsService {
   }
 
   // OBTENER VIAJES AGRUPADOS POR tripName (Para el tab de historial por viaje)
-  async findTripsByAsset(assetId: string) {
+  async findTripsByAsset(assetId: string, from?: string, to?: string) {
     const assetExist = await this.prisma.asset.findUnique({
       where: { id: assetId },
     });
@@ -629,12 +629,24 @@ export class AssetTelemetryLogsService {
       throw new BadRequestException('Asset not found');
     }
 
-    // Traemos todos los logs con tripName asignado, ordenados por fecha
+    const whereCondition: any = {
+      assetId,
+      tripName: { not: null },
+    };
+
+    if (from || to) {
+      whereCondition.createdAt = {};
+      if (from) {
+        whereCondition.createdAt.gte = new Date(from);
+      }
+      if (to) {
+        whereCondition.createdAt.lte = new Date(to);
+      }
+    }
+
+    // Traemos los logs filtrados con tripName asignado, ordenados por fecha
     const logs = await this.prisma.assetTelemetryLog.findMany({
-      where: {
-        assetId,
-        tripName: { not: null },
-      },
+      where: whereCondition,
       orderBy: { createdAt: 'asc' },
     });
 
