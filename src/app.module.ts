@@ -30,6 +30,7 @@ import { HikConnectModule } from './hik-connect/hik-connect.module';
 import { CatalogTypeModule } from './catalog-type/catalog-type.module';
 import { AssetDriveModule } from './asset-drive/asset-drive.module';
 import { AssetGroupModule } from './asset-group/asset-group.module';
+import { CamLiveModule } from './cam-live/cam-live.module';
 
 @Module({
   controllers: [AppController],
@@ -62,6 +63,7 @@ import { AssetGroupModule } from './asset-group/asset-group.module';
     CatalogTypeModule,
     AssetDriveModule,
     AssetGroupModule,
+    CamLiveModule,
   ],
   providers: [],
 })
