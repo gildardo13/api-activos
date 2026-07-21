@@ -44,6 +44,12 @@ export class AssetTelemetryLogsController {
     return this.assetTelemetryLogsService.findAllLatest(search);
   }
 
+  @Get('/getall-latest-inactive-telemetry-logs')
+  @HttpCode(HttpStatus.OK)
+  findAllLatestInactive(@Query('search') search?: string) {
+    return this.assetTelemetryLogsService.findAllLatestInactive(search);
+  }
+
   @Get('/getAll-telemetry-logs-by-asset/:assetId')
   @HttpCode(HttpStatus.OK)
   findAllHistoryByAsset(
@@ -51,6 +57,8 @@ export class AssetTelemetryLogsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
+     // PRUEBA POST
+    //return this.assetTelemetryLogsService.findAllHistoryByAssetPrueba(assetId, from, to);
     return this.assetTelemetryLogsService.findAllHistoryByAsset(assetId, from, to);
   }
 
@@ -122,5 +130,15 @@ export class AssetTelemetryLogsController {
   @HttpCode(HttpStatus.OK)
   deleteAssetById(@Param('assetId') assetId: string) {
     return this.assetTelemetryLogsService.deleteAssetById(assetId);
+  }
+
+  @Get('/getAll-trips-by-asset/:assetId')
+  @HttpCode(HttpStatus.OK)
+  findTripsByAsset(
+    @Param('assetId') assetId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.assetTelemetryLogsService.findTripsByAsset(assetId, from, to);
   }
 }

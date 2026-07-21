@@ -4,7 +4,7 @@ import { UpdateAssetTelemetryLogDto } from './dto/update-asset-telemetry-log.dto
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
 import { QueryAssetTelemetryLogDto } from './dto/query-asset-telemetry-log.dto';
-import { isPointInPolygon } from './helper/helper';
+import { isPointInPolygon, calculateTripName } from './helper/helper';
 
 @Injectable()
 export class AssetTelemetryLogsService {
@@ -38,9 +38,10 @@ export class AssetTelemetryLogsService {
       where: {
         assetId: dto.assetId,
       },
-      orderBy: {
-        recordedAt: 'desc', // Traemos el más reciente
-      },
+      orderBy: [
+        { recordedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
     });
 
 
@@ -73,7 +74,7 @@ export class AssetTelemetryLogsService {
       }
 
       //.APAGADO.
-      const isStillOff = lastVoltage <= 5 && (inputMetadata.externalVoltage === 0 || inputMetadata.externalVoltage === null || inputMetadata.externalVoltage === undefined);
+      const isStillOff = inputMetadata.ignition === 0 && lastMetadata.ignition === 0 && lastVoltage <= 5 && (inputMetadata.externalVoltage === 0 || inputMetadata.externalVoltage === null || inputMetadata.externalVoltage === undefined);
       if (isStillOff && !hasStateChanged) {
         throw new BadRequestException('El vehículo ya estaba apagado. Telemetría omitida.');
       }
@@ -84,6 +85,9 @@ export class AssetTelemetryLogsService {
       const inputMetadata = dto.metadata || {};
       const finalExternalVoltage = inputMetadata.externalVoltage !== undefined && inputMetadata.externalVoltage !== null ? inputMetadata.externalVoltage : null;
       const finalBatteryVoltage = inputMetadata.batteryVoltage !== undefined && inputMetadata.batteryVoltage !== null ? inputMetadata.batteryVoltage : null;
+      const currentIgnition = inputMetadata.ignition !== undefined && inputMetadata.ignition !== null ? inputMetadata.ignition : null;
+
+      const tripName = dto.tripName ?? (await calculateTripName(tx, dto.assetId, currentIgnition, lasTelemetry));
 
       const newTelemetry = await tx.assetTelemetryLog.create({
         data: {
@@ -91,13 +95,14 @@ export class AssetTelemetryLogsService {
           latitud: dto.latitud,
           longitud: dto.longitud,
           speed: dto.speed,
+          tripName: tripName,
           isActive: dto.isActive,
           metadata: {
             din1: inputMetadata.din1 !== undefined && inputMetadata.din1 !== null ? inputMetadata.din1 : 0,
             din2: inputMetadata.din2 !== undefined && inputMetadata.din2 !== null ? inputMetadata.din2 : 0,
             dout1: inputMetadata.dout1 !== undefined && inputMetadata.dout1 !== null ? inputMetadata.dout1 : 0,
             ain1: inputMetadata.ain1 !== undefined && inputMetadata.ain1 !== null ? inputMetadata.ain1 : 0,
-            ignition: inputMetadata.ignition !== undefined && inputMetadata.ignition !== null ? inputMetadata.ignition : null,
+            ignition: currentIgnition,
             externalVoltage: finalExternalVoltage,
             batteryVoltage: finalBatteryVoltage,
           },
@@ -119,7 +124,36 @@ export class AssetTelemetryLogsService {
     return telemetry;
   }
 
-  // 2. OBTENER HISTORIAL (Por Asset)
+  // 2. PRUEBA DE POSTMAN 
+  async findAllHistoryByAssetPrueba(assetId: string, from?: string, to?: string) {
+    const assetExist = await this.prisma.asset.findUnique({
+      where: { id: assetId },
+    });
+
+    if (!assetExist) {
+      throw new BadRequestException('Asset not found');
+    }
+
+    const where: any = {
+      assetId,
+      isActive: true,
+    };
+
+    if (from || to) {
+      where.createdAt = {};
+      if (from) {
+        where.createdAt.gte = new Date(from);
+      }
+      if (to) {
+        where.createdAt.lte = new Date(to);
+      }
+    }
+
+    return this.prisma.assetTelemetryLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
   // 2. OBTENER HISTORIAL (Por Asset)
   async findAllHistoryByAsset(assetId: string, from?: string, to?: string) {
     const assetExist = await this.prisma.asset.findUnique({
@@ -270,6 +304,93 @@ export class AssetTelemetryLogsService {
         assetId: asset
       };
     });
+  }
+
+  // 4.1 OBTENER LAS ÚLTIMAS UBICACIONES PARA ACTIVOS EN INACTIVE MONITOR (sin requerir lastLocation != null)
+  async findAllLatestInactive(search?: string) {
+    const whereAndClause: any[] = [
+      // Regla 1: Permite nulos y estados diferentes a PENDING
+      {
+        OR: [
+          { statusApproval: { not: 'PENDING' } },
+          { statusApproval: null }
+        ]
+      },
+
+      // Regla 2: Sin asignaciones pendientes
+      {
+        assetAssignments: {
+          none: {
+            statusApproval: {
+              in: ['PENDING']
+            }
+          }
+        }
+      }
+    ];
+
+    if (search) {
+      whereAndClause.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    // 1. Obtenemos los assets
+    const listAsset = await this.prisma.asset.findMany({
+      where: {
+        AND: whereAndClause
+      },
+      include: {
+        assetType: true
+      }
+    });
+
+    if (listAsset.length === 0) {
+      return [];
+    }
+
+    // 2. Extraemos los IDs de las telemetrías con lastLocation existente
+    const telemetryIdsWithLastLocation = listAsset
+      .map((item) => item.lastLocation)
+      .filter((id): id is string => typeof id === "string" && id.trim() !== "");
+
+    const telemetriesFromLastLocation = telemetryIdsWithLastLocation.length > 0
+      ? await this.prisma.assetTelemetryLog.findMany({
+          where: { id: { in: telemetryIdsWithLastLocation } },
+        })
+      : [];
+
+    const telemetryMap = new Map<string, any>();
+    telemetriesFromLastLocation.forEach((t) => telemetryMap.set(t.id, t));
+
+    // 3. Para cada activo, obtener su telemetría (usando lastLocation o fallback a la última registrada)
+    const results: any[] = [];
+
+    for (const asset of listAsset) {
+      let telemetry = asset.lastLocation ? telemetryMap.get(asset.lastLocation) : null;
+
+      if (!telemetry) {
+        telemetry = await this.prisma.assetTelemetryLog.findFirst({
+          where: { assetId: asset.id },
+          orderBy: [
+            { recordedAt: 'desc' },
+            { createdAt: 'desc' },
+          ],
+        });
+      }
+
+      if (telemetry) {
+        results.push({
+          ...this.adjustTelemetryOfflineStatus(telemetry),
+          assetId: asset,
+        });
+      }
+    }
+
+    return results;
   }
   // OBTENER TODO (Logs históricos + Últimas ubicaciones agrupadas)
   async findAll() {
@@ -496,6 +617,82 @@ export class AssetTelemetryLogsService {
         assetId: assetId
       }
     });
+  }
+
+  // OBTENER VIAJES AGRUPADOS POR tripName (Para el tab de historial por viaje)
+  async findTripsByAsset(assetId: string, from?: string, to?: string) {
+    const assetExist = await this.prisma.asset.findUnique({
+      where: { id: assetId },
+    });
+
+    if (!assetExist) {
+      throw new BadRequestException('Asset not found');
+    }
+
+    const whereCondition: any = {
+      assetId,
+      tripName: { not: null },
+    };
+
+    if (from || to) {
+      whereCondition.createdAt = {};
+      if (from) {
+        whereCondition.createdAt.gte = new Date(from);
+      }
+      if (to) {
+        whereCondition.createdAt.lte = new Date(to);
+      }
+    }
+
+    // Traemos los logs filtrados con tripName asignado, ordenados por fecha
+    const logs = await this.prisma.assetTelemetryLog.findMany({
+      where: whereCondition,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Agrupamos por tripName
+    const tripsMap = new Map<string, {
+      tripName: string;
+      points: any[];
+      startTime: Date;
+      endTime: Date;
+    }>();
+
+    for (const log of logs) {
+      const name = log.tripName!;
+      if (!tripsMap.has(name)) {
+        tripsMap.set(name, {
+          tripName: name,
+          points: [],
+          startTime: log.createdAt,
+          endTime: log.createdAt,
+        });
+      }
+      const trip = tripsMap.get(name)!;
+      trip.points.push({
+        id: log.id,
+        latitud: log.latitud,
+        longitud: log.longitud,
+        speed: log.speed,
+        recordedAt: log.recordedAt,
+        createdAt: log.createdAt,
+        metadata: log.metadata,
+      });
+      if (log.createdAt > trip.endTime) {
+        trip.endTime = log.createdAt;
+      }
+    }
+
+    // Convertimos el mapa a array y añadimos el conteo
+    const trips = Array.from(tripsMap.values()).map(trip => ({
+      tripName: trip.tripName,
+      count: trip.points.length,
+      startTime: trip.startTime,
+      endTime: trip.endTime,
+      points: trip.points,
+    }));
+
+    return trips;
   }
 
   private adjustTelemetryOfflineStatus(telemetry: any) {

@@ -2,21 +2,25 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsObject,
   IsOptional,
   IsString,
 } from 'class-validator';
 
-export enum  FieldType {
+export enum FieldType {
   TEXT = 'TEXT',
   NUMBER = 'NUMBER',
   SELECT = 'SELECT',
   DATE = 'DATE',
+  LOCATION = 'LOCATION',
+  CURRENCY = 'CURRENCY',
+  GALLERY = 'GALLERY',
   FILE = 'FILE',
 }
 
 export class AssetFieldDefinition {
   id: string;
-  
+
   @IsOptional()
   @IsString()
   assetTypeId?: string;
@@ -40,4 +44,8 @@ export class AssetFieldDefinition {
   @IsOptional()
   @IsBoolean()
   isRequired?: boolean;
+
+  @IsObject()
+  @IsOptional()
+  metadata?: any;
 }

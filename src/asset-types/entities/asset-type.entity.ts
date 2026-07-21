@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsObject,
   IsOptional,
   IsString,
 } from 'class-validator';
@@ -36,4 +37,8 @@ export class AssetType {
   @IsOptional()
   @IsEnum(Status)
   status?: Status;
+
+  @IsObject()
+  @IsOptional()
+  metadata?: any;
 }

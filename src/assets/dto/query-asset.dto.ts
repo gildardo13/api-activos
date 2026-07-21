@@ -37,4 +37,12 @@ export class QueryAssetsDto {
   @IsOptional()
   @IsString()
   sortByDate?: SortOrder = SortOrder.DESC;
+
+  @IsOptional()
+  @IsString()
+  groupId?: string;
+
+  @IsOptional()
+  @IsString()
+  assetTypeId?: string;
 }

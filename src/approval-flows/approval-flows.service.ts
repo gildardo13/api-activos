@@ -291,13 +291,21 @@ export class ApprovalFlowsService {
             await this.geocercaService.update(dtoGeocerca.idExiting, {
               name: dtoGeocerca.name,
               coordinates: dtoGeocerca.coordinates,
+              location: dtoGeocerca.location,
+              description: dtoGeocerca.description,
+              mainPhotograph: dtoGeocerca.mainPhotograph,
+              isLimitMovible: dtoGeocerca.isLimitMovible !== undefined ? dtoGeocerca.isLimitMovible : true,
             });
           } else {
             await this.geocercaService.create({
               assetId: realReferenceId,
               name: dtoGeocerca.name,
               coordinates: dtoGeocerca.coordinates,
+              location: dtoGeocerca.location,
               status: dtoGeocerca.status,
+              description: dtoGeocerca.description,
+              mainPhotograph: dtoGeocerca.mainPhotograph,
+              isLimitMovible: dtoGeocerca.isLimitMovible !== undefined ? dtoGeocerca.isLimitMovible : true,
             });
           }
         }

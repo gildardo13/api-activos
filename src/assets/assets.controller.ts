@@ -60,6 +60,18 @@ export class AssetsController {
     return this.assetsService.findAllNoQuery();
   }
 
+  @Get('/find-all-is-limit')
+  @HttpCode(HttpStatus.OK)
+  findAllIsLimit() {
+    return this.assetsService.findAllIsLimit();
+  }
+
+  @Get('/find-all-movable')
+  @HttpCode(HttpStatus.OK)
+  findAllMovable() {
+    return this.assetsService.findAllMovable();
+  }
+
   @Get('/without-location-inactive-telemetry')
   @HttpCode(HttpStatus.OK)
   findWithoutLocationInactiveTelemetry(@Query('search') search?: string) {
@@ -99,14 +111,14 @@ export class AssetsController {
     return this.assetsService.remove(id);
   }
 
-
   @Patch('/change-status/:id')
   @HttpCode(HttpStatus.OK)
   changeStatus(
     @Param('id') id: string,
     @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
+    @Body('metadata') metadata?: any,
   ) {
-    return this.assetsService.changeStatus(id, status);
+    return this.assetsService.changeStatus(id, status, metadata);
   }
 
   @Get('/bulk-template/:assetTypeId')
@@ -144,6 +156,8 @@ export class AssetsController {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="instrucciones_archivos.xlsx"`,
         'Content-Length': result.data.length,
+        'Access-Control-Expose-Headers': 'x-created-assets',
+        'x-created-assets': JSON.stringify((result as any).assets),
       });
       return res.end(result.data);
     }
@@ -156,4 +170,28 @@ export class AssetsController {
   async bulkUploadFiles() {
     return this.assetsService.bulkUploadFiles();
   }
+
+  @Get('/pdf/:id')
+  @HttpCode(HttpStatus.OK)
+  async downloadAssetPdf(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.assetsService.generateAssetPdf(id);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+
+    return res.end(buffer);
+  }
+
+  @Get('/getTotalCash')
+  @HttpCode(HttpStatus.OK)
+  findAllTotal() {
+    return this.assetsService.getTotal();
+  }
+
 }

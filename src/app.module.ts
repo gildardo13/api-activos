@@ -27,6 +27,9 @@ import { GpsModule } from './gps/tcp-server.module';
 import { ApprovalFlowBodyModule } from './approval-flow-body/approval-flow-body.module';
 import { CamerasModule } from './cameras/cameras.module';
 import { HikConnectModule } from './hik-connect/hik-connect.module';
+import { CatalogTypeModule } from './catalog-type/catalog-type.module';
+import { AssetDriveModule } from './asset-drive/asset-drive.module';
+import { AssetGroupModule } from './asset-group/asset-group.module';
 
 @Module({
   controllers: [AppController],
@@ -56,6 +59,9 @@ import { HikConnectModule } from './hik-connect/hik-connect.module';
     ApprovalFlowBodyModule,
     CamerasModule,
     HikConnectModule,
+    CatalogTypeModule,
+    AssetDriveModule,
+    AssetGroupModule,
   ],
   providers: [],
 })

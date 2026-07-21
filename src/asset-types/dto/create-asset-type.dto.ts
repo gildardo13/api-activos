@@ -43,4 +43,11 @@ export class CreateAssetTypeDto {
   @IsOptional()
   @IsEnum(Status)
   status?: Status;
+
+  @IsObject()
+  @IsOptional()
+  metadata?: any;
+
+  @IsOptional()
+  templateDesign?: any;
 }

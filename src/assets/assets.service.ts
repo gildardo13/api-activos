@@ -11,6 +11,7 @@ import { CreateAssetDto, StatusApproval, StatusAsset } from './dto/create-asset.
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryAssetsDto } from './dto/query-asset.dto';
+import { formatToISODate } from 'src/common/helper';
 import { ApprovalFlowsService } from 'src/approval-flows/approval-flows.service';
 import { CloudinaryService } from 'src/common/cloudinary/cloudinary.service';
 import * as XLSX from 'xlsx';
@@ -35,6 +36,7 @@ export class AssetsService {
     // 1. Validar que el assetType exista
     const assetType = await this.prisma.assetType.findUnique({
       where: { id: dto.assetTypeId },
+      include: { assetFieldDefinitions: true },
     });
 
     if (!assetType) {
@@ -42,6 +44,17 @@ export class AssetsService {
     }
     if (assetType.status !== "ACTIVE") {
       throw new BadRequestException('Asset Desactivado');
+    }
+
+    // Validar campos dinámicos requeridos
+    const inputAttributes = (dto.attributesData as any[]) || [];
+    for (const fieldDef of assetType.assetFieldDefinitions) {
+      if (fieldDef.isRequired) {
+        const attributeVal = inputAttributes.find((a) => a.idField === fieldDef.id);
+        if (!attributeVal || attributeVal.value === undefined || attributeVal.value === null || String(attributeVal.value).trim() === '') {
+          throw new BadRequestException(`El campo "${fieldDef.label}" es obligatorio`);
+        }
+      }
     }
 
     // 2. Validar código único
@@ -67,6 +80,8 @@ export class AssetsService {
         description: dto.description,
         status: dto.status,
         lastLocation: dto.lastLocation,
+        mainPhotograph: dto.mainPhotograph,
+        metadata: dto.metadata,
         attributesData: dto.attributesData as Prisma.InputJsonValue,
         gpsDeviceId: dto.gpsDeviceId || null,
       },
@@ -148,11 +163,27 @@ export class AssetsService {
       sortByDate = 'desc',
       status,
       clasificationType,
+      groupId,
+      assetTypeId,
     } = query;
 
     const skip = (page - 1) * limit;
 
     const where: any = {};
+
+    // ── Filtro por grupo ──────────────────────────────
+    if (groupId) {
+      where.groups = {
+        some: {
+          id: groupId,
+        },
+      };
+    }
+
+    // ── Filtro por tipo de activo ─────────────────────
+    if (assetTypeId) {
+      where.assetTypeId = assetTypeId;
+    }
 
     // ── Filtro por estado ─────────────────────────────
     if (status) {
@@ -162,6 +193,7 @@ export class AssetsService {
     // ── Filtro por tipo de clasificación ──────────────
     if (clasificationType) {
       where.assetType = {
+        ...where.assetType,
         clasificationType,
       };
     }
@@ -297,6 +329,56 @@ export class AssetsService {
     return { data, meta: { total: data.length } };
   }
 
+  async findAllIsLimit() {
+    const data = await this.prisma.asset.findMany({
+      where: {
+        assetGeofences: {
+          some: {
+            isLimitMovible: true,
+          },
+        },
+      },
+      include: {
+        assetType: true,
+        assetTelemetryLogs: true,
+        assetDocuments: true,
+        assetGeofences: {
+          where: {
+            isLimitMovible: true,
+          },
+        },
+        assetAssignments: true,
+        gpsDevice: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  }
+
+  async findAllMovable() {
+    const data = await this.prisma.asset.findMany({
+      where: {
+        assetType: {
+          clasificationType: 'MOVABLE',
+        },
+      },
+      include: {
+        assetType: true,
+        assetTelemetryLogs: true,
+        assetDocuments: true,
+        assetGeofences: true,
+        assetAssignments: true,
+        gpsDevice: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return { data, meta: { total: data.length } };
+  }
+
   async findWithoutLocationInactiveTelemetry(search?: string) {
     const whereClause: any = {
       OR: [
@@ -345,6 +427,7 @@ export class AssetsService {
   async findAllNoQuerynotAssigment() {
     const data = await this.prisma.asset.findMany({
       where: {
+        status: 'ACTIVE',
         assetAssignments: {
           none: {
             returnedAt: null,
@@ -422,7 +505,8 @@ export class AssetsService {
           lastLocation: dto.lastLocation,
           statusApproval: dto.statusApproval,
           commentsApproval: dto.commentsApproval,
-          gpsDeviceId: dto.gpsDeviceId || null,
+          mainPhotograph: dto.mainPhotograph,
+          gpsDeviceId: dto.gpsDeviceId !== undefined ? (dto.gpsDeviceId || null) : existing.gpsDeviceId,
 
         },
         include: {
@@ -523,8 +607,9 @@ export class AssetsService {
         lastLocation: dto.lastLocation,
         attributesData: updatedAttributes as Prisma.InputJsonValue,
         statusApproval: dto.statusApproval,
+        mainPhotograph: dto.mainPhotograph,
         commentsApproval: dto.commentsApproval,
-        gpsDeviceId: dto.gpsDeviceId || null,
+        gpsDeviceId: dto.gpsDeviceId !== undefined ? (dto.gpsDeviceId || null) : existing.gpsDeviceId,
 
       },
       include: {
@@ -629,6 +714,7 @@ export class AssetsService {
   async changeStatus(
     id: string,
     status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE',
+    metadata?: any,
   ) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Asset not found');
@@ -646,117 +732,20 @@ export class AssetsService {
       );
     }
 
+    const currentMetadata = asset.metadata && typeof asset.metadata === 'object' ? (asset.metadata as any) : {};
+    const updatedMetadata = metadata ? {
+      ...currentMetadata,
+      ...metadata,
+    } : asset.metadata;
+
     return this.prisma.asset.update({
       where: { id },
-      data: { status },
+      data: {
+        status,
+        metadata: updatedMetadata ?? undefined,
+      },
     });
   }
-
-
-  /*async createNewAsset(dto: CreateAssetDto) {
-    const { assetTypeId } = dto;
-
-    // 1. validar assetType
-    const assetType = await this.prisma.assetType.findUnique({
-      where: { id: assetTypeId },
-      include: { assetFieldDefinitions: true },
-    });
-
-    if (!assetType) {
-      throw new BadRequestException('Asset type does not exist');
-    }
-
-    const fields = assetType.assetFieldDefinitions;
-
-    // 2. validar required fields
-    const requiredFields = fields.filter((f) => f.isRequired);
-
-    for (const field of requiredFields) {
-      if (!(field.label in data_fields)) {
-        throw new BadRequestException(
-          `Missing required field: ${field.label}`,
-        );
-      }
-    }
-
-    // 3. validar tipos
-    for (const field of fields) {
-      const value = data_fields[field.label];
-
-      if (value === undefined) continue;
-
-      switch (field.fieldType) {
-        case 'NUMBER':
-          if (typeof value !== 'number') {
-            throw new BadRequestException(
-              `${field.label} must be number`,
-            );
-          }
-          break;
-
-        case 'TEXT':
-          if (typeof value !== 'string') {
-            throw new BadRequestException(
-              `${field.label} must be string`,
-            );
-          }
-          break;
-
-        case 'SELECT':
-          if (typeof value !== 'string') {
-            throw new BadRequestException(
-              `${field.label} must be string`,
-            );
-          }
-          break;
-
-        case 'DATE':
-          if (isNaN(Date.parse(value))) {
-            throw new BadRequestException(
-              `${field.label} must be valid date`,
-            );
-          }
-          break;
-
-        case 'FILE':
-          if (typeof value !== 'string') {
-            throw new BadRequestException(
-              `${field.label} must be file path or url`,
-            );
-          }
-          break;
-      }
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      const asset = await tx.asset.create({
-        data: {
-          assetTypeId,
-          code: dto.code,
-          name: dto.name,
-          description: dto.description,
-          status: dto.status,
-          lastLocation: dto.lastLocation,
-
-        },
-      });
-
-      // 5. documentos
-      if (file_fields?.length) {
-        await tx.assetDocument.createMany({
-          data: file_fields.map((file: any) => ({
-            assetId: asset.id,
-            fieldDefinitionId: file.fieldDefinitionId,
-            fileName: file.fileName,
-            fileUrl: file.fileUrl,
-          })),
-        });
-      }
-
-      return asset;
-    });
-  }*/
-
   async generateTemplate(assetTypeId: string): Promise<Buffer> {
     const assetType = await this.prisma.assetType.findUnique({
       where: { id: assetTypeId },
@@ -774,7 +763,7 @@ export class AssetsService {
     ];
     const excludedFields = ['ubicacion', 'gpsime'];
     const nonFileFields = assetType.assetFieldDefinitions.filter(
-      (f) => f.fieldType !== 'FILE' && !excludedFields.includes(f.label) // Ajusta 'f.name' a 'f.label' o 'f.fieldType' si es necesario
+      (f) => f.fieldType !== 'FILE' && f.fieldType !== 'GALLERY' && !excludedFields.includes(f.label) // Ajusta 'f.name' a 'f.label' o 'f.fieldType' si es necesario
     );
 
     for (const field of nonFileFields) {
@@ -784,6 +773,16 @@ export class AssetsService {
         if (field.options && Array.isArray(field.options)) {
           finalLabel += ` (${field.options.join(', ')})`;
         }
+      }
+
+      if (field.fieldType === 'date' || field.fieldType === 'DATE') {
+        finalLabel += ' (DD/MM/AAAA)';
+      }
+
+      if (field.fieldType === 'CURRENCY') {
+        const metadata = (field.metadata as Record<string, any>) || {};
+        const currencyCode = metadata.currencyCode || 'MXN';
+        finalLabel += ` (${currencyCode.toUpperCase()})`;
       }
 
       headers.push(finalLabel);
@@ -798,7 +797,7 @@ export class AssetsService {
     return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
   }
 
-  async bulkUpload(file: Express.Multer.File, assetTypeId: string): Promise<{ success: boolean; data?: Buffer; message: string; pendingFiles: boolean }> {
+  async bulkUpload(file: Express.Multer.File, assetTypeId: string): Promise<{ success: boolean; data?: Buffer; message: string; pendingFiles: boolean; assets?: any[] }> {
     const assetType = await this.prisma.assetType.findUnique({
       where: { id: assetTypeId },
       include: { assetFieldDefinitions: true },
@@ -936,6 +935,127 @@ export class AssetsService {
         gpsDeviceId = gpsDev.id;
       }
 
+      // Validar campos dinámicos obligatorios y sus tipos (que no sean de tipo FILE o GALLERY)
+      let validationError = false;
+      for (const fieldDef of assetType.assetFieldDefinitions) {
+        if (fieldDef.fieldType === 'FILE' || fieldDef.fieldType === 'GALLERY') continue;
+
+        const userVal = assetData.dynamicAttributes[fieldDef.id];
+        const isEmpty = userVal === undefined || userVal === null || String(userVal).trim() === '';
+
+        // 1. Validar requerido
+        if (fieldDef.isRequired && isEmpty) {
+          errors.push({
+            row: rowNumber,
+            error: `El campo "${fieldDef.label}" es obligatorio`,
+          });
+          validationError = true;
+          continue;
+        }
+
+        // 2. Validar tipo de dato si no está vacío
+        if (!isEmpty) {
+          const strVal = String(userVal).trim();
+
+          if (fieldDef.fieldType === 'NUMBER') {
+            if (isNaN(Number(strVal))) {
+              errors.push({
+                row: rowNumber,
+                error: `El campo "${fieldDef.label}" debe ser un número válido (recibido: "${userVal}")`,
+              });
+              validationError = true;
+            }
+          }
+
+          if (fieldDef.fieldType === 'CURRENCY') {
+            const cleanVal = strVal.replace(/[$,€,£,¥]/g, '').replace(/,/g, '').trim();
+            if (isNaN(Number(cleanVal))) {
+              errors.push({
+                row: rowNumber,
+                error: `El campo "${fieldDef.label}" debe ser un valor decimal de moneda válido (recibido: "${userVal}")`,
+              });
+              validationError = true;
+            } else {
+              const parts = cleanVal.split('.');
+              const hasMoreThanTwoDecimals = parts.length > 1 && parts[1].replace(/0+$/, '').length > 2;
+              if (hasMoreThanTwoDecimals) {
+                errors.push({
+                  row: rowNumber,
+                  error: `El campo "${fieldDef.label}" no debe tener más de 2 decimales (recibido: "${userVal}")`,
+                });
+                validationError = true;
+              } else {
+                assetData.dynamicAttributes[fieldDef.id] = cleanVal;
+              }
+            }
+          }
+
+          if (fieldDef.fieldType === 'DATE') {
+            let parsedDate = strVal;
+            const dmyMatch = strVal.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+            if (dmyMatch) {
+              // Convertir DD/MM/AAAA o DD-MM-AAAA a AAAA-MM-DD
+              parsedDate = `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+            }
+
+            const timestamp = Date.parse(parsedDate);
+            const num = Number(strVal);
+            const isExcelDate = !isNaN(num) && num > 0;
+
+            let isRealCalendarDate = false;
+            if (!isNaN(timestamp)) {
+              const testDate = new Date(parsedDate);
+              if (dmyMatch) {
+                const day = parseInt(dmyMatch[1], 10);
+                const month = parseInt(dmyMatch[2], 10) - 1; // 0-indexed en JS
+                const year = parseInt(dmyMatch[3], 10);
+                isRealCalendarDate = testDate.getFullYear() === year && testDate.getMonth() === month && testDate.getDate() === day;
+              } else {
+                const ymdMatch = strVal.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+                if (ymdMatch) {
+                  const year = parseInt(ymdMatch[1], 10);
+                  const month = parseInt(ymdMatch[2], 10) - 1;
+                  const day = parseInt(ymdMatch[3], 10);
+                  isRealCalendarDate = testDate.getFullYear() === year && testDate.getMonth() === month && testDate.getDate() === day;
+                } else {
+                  isRealCalendarDate = true;
+                }
+              }
+            }
+
+            const isMalformed = isNaN(timestamp);
+            const isNonExistent = !isMalformed && !isRealCalendarDate;
+
+            if ((isMalformed || isNonExistent) && !isExcelDate) {
+              const suffix = isNonExistent ? ' (fecha inexistente)' : '';
+              errors.push({
+                row: rowNumber,
+                error: `El campo "${fieldDef.label}" debe ser una fecha válida en formato DD/MM/AAAA o AAAA-MM-DD (recibido: "${userVal}")${suffix}`,
+              });
+              validationError = true;
+            }
+          }
+
+          if (fieldDef.fieldType === 'SELECT') {
+            const options = fieldDef.options as string[];
+            if (options && options.length > 0) {
+              const match = options.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase());
+              if (!match) {
+                errors.push({
+                  row: rowNumber,
+                  error: `El campo "${fieldDef.label}" contiene un valor no permitido. Opciones válidas: [${options.join(', ')}] (recibido: "${userVal}")`,
+                });
+                validationError = true;
+              }
+            }
+          }
+        }
+      }
+
+      if (validationError) {
+        continue;
+      }
+
       parsedAssets.push({
         ...assetData,
         gpsDeviceId,
@@ -970,8 +1090,25 @@ export class AssetsService {
               fieldId: fieldDef.id,
               fileName: expectedFileName,
             });
+          } else if (fieldDef.fieldType === 'GALLERY') {
+            attributesData.push({
+              idField: fieldDef.id,
+              label: fieldDef.label,
+              value: [],
+            });
+            pendingFileRequirements.push({
+              assetCode: parsedAsset.code,
+              assetName: parsedAsset.name,
+              fieldLabel: fieldDef.label,
+              fieldId: fieldDef.id,
+              fileName: `Carpeta: ${fieldDef.label}`,
+              isGallery: true,
+            });
           } else {
-            const userVal = parsedAsset.dynamicAttributes[fieldDef.id] || '';
+            let userVal = parsedAsset.dynamicAttributes[fieldDef.id] || '';
+            if (fieldDef.fieldType === 'DATE' && userVal) {
+              userVal = formatToISODate(userVal);
+            }
             attributesData.push({
               idField: fieldDef.id,
               label: fieldDef.label,
@@ -989,6 +1126,8 @@ export class AssetsService {
             status: StatusAsset.ACTIVE,
             lastLocation: parsedAsset.lastLocation || null,
             attributesData: attributesData as Prisma.InputJsonValue,
+            mainPhotograph: parsedAsset.mainPhotograph,
+            metadata: parsedAsset.metadata,
             gpsDeviceId: parsedAsset.gpsDeviceId,
           },
         });
@@ -1006,14 +1145,36 @@ export class AssetsService {
         'RUTA REQUERIDA EN DOCUMENTOS',
       ];
 
-      const instrRows = pendingFileRequirements.map((req) => [
-        req.assetCode,
-        req.assetName,
-        req.fieldLabel,
-        `${req.fileName}.[ext]`,
-        `COD-${req.assetCode}`,
-        `archivos_activos/COD-${req.assetCode}/${req.fileName}.[ext]`,
-      ]);
+      const instrRows: any[] = [];
+      let lastAssetCode = '';
+
+      for (const req of pendingFileRequirements) {
+        if (lastAssetCode && req.assetCode !== lastAssetCode) {
+          instrRows.push(['', '', '', '', '', '']);
+        }
+        lastAssetCode = req.assetCode;
+
+        if (req.isGallery) {
+          const normalizedLabel = req.fieldLabel.replace(/\s+/g, '-');
+          instrRows.push([
+            req.assetCode,
+            req.assetName,
+            req.fieldLabel,
+            'Cualquier imagen (.jpg, .jpeg, .png, .webp)',
+            `gallery/COD-${req.assetCode}/${normalizedLabel}`,
+            `archivos_activos/gallery/COD-${req.assetCode}/${normalizedLabel}/[fotos]`,
+          ]);
+        } else {
+          instrRows.push([
+            req.assetCode,
+            req.assetName,
+            req.fieldLabel,
+            `${req.fileName}.[ext]`,
+            `documents/COD-${req.assetCode}`,
+            `archivos_activos/documents/COD-${req.assetCode}/${req.fileName}.[ext]`,
+          ]);
+        }
+      }
 
       const instrWb = XLSX.utils.book_new();
       const instrWs = XLSX.utils.aoa_to_sheet([instrHeaders, ...instrRows]);
@@ -1029,6 +1190,7 @@ export class AssetsService {
         data: instrBuffer,
         message: `Se crearon ${createdAssets.length} activos. Se requieren archivos.`,
         pendingFiles: true,
+        assets: createdAssets.map((a) => ({ id: a.id, code: a.code, name: a.name })),
       };
     }
 
@@ -1036,9 +1198,10 @@ export class AssetsService {
       success: true,
       message: `Se cargaron ${createdAssets.length} activos exitosamente`,
       pendingFiles: false,
+      assets: createdAssets.map((a) => ({ id: a.id, code: a.code, name: a.name })),
     };
   }
-  async bulkUploadFiles(): Promise<{ success: boolean; uploadedCount: number; uploadedFiles: any[]; unmatchedFiles: string[] }> {
+  async bulkUploadFiles(): Promise<{ success: boolean; uploadedCount: number; uploadedFiles: any[]; unmatchedFiles: string[]; assets?: any[] }> {
     const uploadedFiles = [];
     const unmatchedFiles = [];
     let uploadedCount = 0;
@@ -1085,6 +1248,8 @@ export class AssetsService {
       attrIndex: number;
       localPath: string;
       fileName: string;
+      isGallery: boolean;
+      maxLength?: number;
     }> = [];
 
     // 2. Validar cada activo y sus requerimientos de archivos
@@ -1093,54 +1258,106 @@ export class AssetsService {
       if (!Array.isArray(attributes)) continue;
 
       const fieldDefs = asset.assetType.assetFieldDefinitions;
-      const assetFolder = path.join(docsDir, `COD-${asset.code}`);
+      const documentsFolder = path.join(docsDir, 'documents', `COD-${asset.code}`);
+      const galleryBaseFolder = path.join(docsDir, 'gallery', `COD-${asset.code}`);
 
       for (let i = 0; i < attributes.length; i++) {
         const attr = attributes[i];
 
-        // Buscar si es un campo de tipo FILE
+        // Buscar si es un campo de tipo FILE o GALLERY
         const fieldDef = fieldDefs.find(f => f.id === attr.idField);
-        if (!fieldDef || fieldDef.fieldType !== 'FILE') continue;
+        if (!fieldDef) continue;
 
-        const isRequired = fieldDef.isRequired;
-        const hasValue = attr.value && String(attr.value).trim() !== '';
+        if (fieldDef.fieldType === 'FILE') {
+          const isRequired = fieldDef.isRequired;
+          const hasValue = attr.value && String(attr.value).trim() !== '';
 
-        // El nombre esperado es el label del atributo (o pendingFileName si existe)
-        const expectedFileName = attr.pendingFileName || attr.label || fieldDef.label;
+          // El nombre esperado es el label del atributo (o pendingFileName si existe)
+          const expectedFileName = attr.pendingFileName || attr.label || fieldDef.label;
 
-        let matchedFilePath: string | null = null;
-        if (fs.existsSync(assetFolder)) {
-          const files = fs.readdirSync(assetFolder);
-          const expectedClean = expectedFileName.toLowerCase().trim();
+          let matchedFilePath: string | null = null;
+          if (fs.existsSync(documentsFolder)) {
+            const files = fs.readdirSync(documentsFolder);
+            const expectedClean = expectedFileName.toLowerCase().trim();
 
-          for (const file of files) {
-            const stat = fs.statSync(path.join(assetFolder, file));
-            if (stat.isDirectory()) continue;
+            for (const file of files) {
+              const stat = fs.statSync(path.join(documentsFolder, file));
+              if (stat.isDirectory()) continue;
 
-            const fileBaseName = path.parse(file).name;
-            if (fileBaseName.toLowerCase().trim() === expectedClean) {
-              matchedFilePath = path.join(assetFolder, file);
-              break;
+              const fileBaseName = path.parse(file).name;
+              if (fileBaseName.toLowerCase().trim() === expectedClean) {
+                matchedFilePath = path.join(documentsFolder, file);
+                break;
+              }
             }
           }
-        }
 
-        if (!matchedFilePath) {
-          // Si el archivo obligatorio no está localmente y NO se ha subido previamente, es un error
-          if (isRequired && !hasValue) {
-            validationErrors.push(
-              `No tienes el documento ${expectedFileName} en el activo ${asset.code} (${asset.name})`
-            );
+          if (!matchedFilePath) {
+            // Si el archivo obligatorio no está localmente y NO se ha subido previamente, es un error
+            if (isRequired && !hasValue) {
+              validationErrors.push(
+                `No tienes el documento ${expectedFileName} en el activo ${asset.code} (${asset.name})`
+              );
+            }
+          } else {
+            // Encontrado localmente, lo agregamos para subir/actualizar
+            filesToUpload.push({
+              asset,
+              attribute: attr,
+              attrIndex: i,
+              localPath: matchedFilePath,
+              fileName: path.basename(matchedFilePath),
+              isGallery: false,
+            });
           }
-        } else {
-          // Encontrado localmente, lo agregamos para subir/actualizar
-          filesToUpload.push({
-            asset,
-            attribute: attr,
-            attrIndex: i,
-            localPath: matchedFilePath,
-            fileName: path.basename(matchedFilePath),
-          });
+        } else if (fieldDef.fieldType === 'GALLERY') {
+          const normalizedLabel = fieldDef.label.replace(/\s+/g, '-');
+          const galleryFolder = path.join(galleryBaseFolder, normalizedLabel);
+          if (fs.existsSync(galleryFolder) && fs.statSync(galleryFolder).isDirectory()) {
+            const files = fs.readdirSync(galleryFolder);
+            const imageFiles = files.filter(file => {
+              const stat = fs.statSync(path.join(galleryFolder, file));
+              if (stat.isDirectory()) return false;
+              const ext = file.split('.').pop()?.toLowerCase() || '';
+              return ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
+            });
+
+            // Leer límite de la metadata del campo (por defecto 5)
+            let metadata = fieldDef.metadata as any;
+            if (typeof metadata === 'string') {
+              try {
+                metadata = JSON.parse(metadata);
+              } catch (e) {
+                console.error("Error parsing field definition metadata:", e);
+              }
+            }
+            let maxLength = 5;
+            if (metadata && typeof metadata === 'object') {
+              const limit = parseInt(metadata.lengthImg || metadata.length, 10);
+              if (!isNaN(limit)) {
+                maxLength = limit;
+              }
+            }
+
+            // Calcular cuántos archivos se pueden agregar sin superar el límite
+            const currentGalleryValue = Array.isArray(attr.value) ? attr.value : [];
+            const allowedUploadsCount = maxLength - currentGalleryValue.length;
+
+            if (allowedUploadsCount > 0) {
+              const filesToPush = imageFiles.slice(0, allowedUploadsCount);
+              for (const file of filesToPush) {
+                filesToUpload.push({
+                  asset,
+                  attribute: attr,
+                  attrIndex: i,
+                  localPath: path.join(galleryFolder, file),
+                  fileName: file,
+                  isGallery: true,
+                  maxLength,
+                });
+              }
+            }
+          }
         }
       }
     }
@@ -1155,7 +1372,30 @@ export class AssetsService {
 
     // 3. Subir los archivos encontrados a Cloudinary y actualizar la DB
     for (const item of filesToUpload) {
-      const { asset, attribute, attrIndex, localPath, fileName } = item;
+      const { asset, attribute, attrIndex, localPath, fileName, isGallery, maxLength } = item;
+
+      // Obtener el activo más reciente para verificar límites y evitar sobreescritura
+      const dbAsset = await this.prisma.asset.findUnique({ where: { id: asset.id } });
+      if (!dbAsset) continue;
+
+      const dbAttributes = dbAsset.attributesData as any[];
+      const attrIndexInDb = dbAttributes.findIndex(a => a.idField === attribute.idField);
+      if (attrIndexInDb === -1) {
+        console.warn(`Atributo no encontrado por idField: ${attribute.idField}`);
+        continue;
+      }
+
+      if (isGallery) {
+        const updatedAttr = { ...dbAttributes[attrIndexInDb] };
+        const currentGalleryValue = Array.isArray(updatedAttr.value) ? updatedAttr.value : [];
+
+        const limit = maxLength ?? 5;
+        if (currentGalleryValue.length >= limit) {
+          console.warn(`Se omitió el archivo ${fileName} para el activo ${asset.code} porque la galería ya alcanzó el límite de ${limit} imágenes.`);
+          continue;
+        }
+      }
+
       const fileBuffer = fs.readFileSync(localPath);
 
       const fakeFile = {
@@ -1167,32 +1407,60 @@ export class AssetsService {
       // Subir a Cloudinary
       const secureUrl = await this.cloudinaryService.uploadFile(fakeFile, 'assets');
 
-      // Crear el registro de documento
-      const doc = await this.prisma.assetDocument.create({
-        data: {
-          assetId: asset.id,
-          fieldDefinitionId: attribute.idField,
-          fileName: fileName,
-          fileUrl: secureUrl,
-          uploadedAt: new Date(),
-        },
-      });
+      // Volver a obtener el activo más reciente para guardar el valor
+      const latestAsset = await this.prisma.asset.findUnique({ where: { id: asset.id } });
+      if (!latestAsset) continue;
+      const latestAttributes = latestAsset.attributesData as any[];
+      const targetIndex = latestAttributes.findIndex(a => a.idField === attribute.idField);
+      if (targetIndex === -1) continue;
 
-      // Actualizar el atributo en el activo
-      const attributes = asset.attributesData as any[];
-      const updatedAttr = { ...attributes[attrIndex] };
-      updatedAttr.value = doc.id;
-      if (updatedAttr.pendingFileName !== undefined) {
-        delete updatedAttr.pendingFileName;
+      const updatedAttr = { ...latestAttributes[targetIndex] };
+
+      if (isGallery) {
+        let currentGalleryValue = Array.isArray(updatedAttr.value) ? updatedAttr.value : [];
+        const nextPosition = currentGalleryValue.length;
+
+        currentGalleryValue.push({
+          url: secureUrl,
+          name: fileName,
+          positionImg: nextPosition,
+        });
+
+        updatedAttr.value = currentGalleryValue;
+        latestAttributes[targetIndex] = updatedAttr;
+
+        await this.prisma.asset.update({
+          where: { id: asset.id },
+          data: {
+            attributesData: latestAttributes as Prisma.InputJsonValue,
+          },
+        });
+      } else {
+        // Crear el registro de documento
+        const doc = await this.prisma.assetDocument.create({
+          data: {
+            assetId: asset.id,
+            fieldDefinitionId: attribute.idField,
+            fileName: fileName,
+            fileUrl: secureUrl,
+            uploadedAt: new Date(),
+          },
+        });
+
+        // Actualizar el atributo en el activo
+        updatedAttr.value = doc.id;
+        if (updatedAttr.pendingFileName !== undefined) {
+          delete updatedAttr.pendingFileName;
+        }
+        latestAttributes[targetIndex] = updatedAttr;
+
+        await this.prisma.asset.update({
+          where: { id: asset.id },
+          data: {
+            attributesData: latestAttributes as Prisma.InputJsonValue,
+          },
+        });
       }
-      attributes[attrIndex] = updatedAttr;
-
-      await this.prisma.asset.update({
-        where: { id: asset.id },
-        data: {
-          attributesData: attributes as Prisma.InputJsonValue,
-        },
-      });
 
       uploadedFiles.push({
         assetCode: asset.code,
@@ -1204,11 +1472,158 @@ export class AssetsService {
       uploadedCount++;
     }
 
+    const uniqueAssets = Array.from(new Map(filesToUpload.map(item => [item.asset.id, item.asset])).values());
+
     return {
       success: true,
       uploadedCount,
       uploadedFiles,
       unmatchedFiles,
+      assets: uniqueAssets.map((a: any) => ({ id: a.id, code: a.code, name: a.name })),
     };
   }
+
+  async generateAssetPdf(id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id },
+      include: {
+        assetType: true,
+      },
+    });
+
+    if (!asset) {
+      throw new BadRequestException('Asset not found');
+    }
+
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 36, size: 'A4' });
+    const chunks: Buffer[] = [];
+
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    return new Promise((resolve, reject) => {
+      doc.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        resolve({
+          buffer,
+          filename: `Ficha_${(asset.code || asset.name || 'Activo').replace(/\s+/g, '_')}.pdf`,
+        });
+      });
+
+      doc.on('error', (err: any) => reject(err));
+
+      // Header
+      doc.fontSize(20).fillColor('#0f172a').text(asset.name, { align: 'left' });
+      doc.fontSize(10).fillColor('#64748b').text(`Código: ${asset.code || 'S/N'}  |  Fecha: ${new Date().toLocaleDateString('es-MX')}`);
+      doc.moveDown(0.5);
+      doc.moveTo(36, doc.y).lineTo(559, doc.y).strokeColor('#cbd5e1').stroke();
+      doc.moveDown(1);
+
+      // Status & Location
+      doc.fontSize(11).fillColor('#334155').text(`Estado: ${asset.status}`, { continued: true });
+      doc.text(`   |   Ubicación: ${asset.lastLocation || 'N/A'}`);
+      doc.moveDown(0.5);
+
+      if (asset.description) {
+        doc.fontSize(10).fillColor('#475569').text(`Descripción: ${asset.description}`);
+        doc.moveDown(1);
+      }
+
+      // Attributes table
+      doc.fontSize(12).fillColor('#0f172a').text('ESPECIFICACIONES TÉCNICAS Y ATRIBUTOS', { underline: true });
+      doc.moveDown(0.8);
+
+      let rawAttr: any = asset.attributesData;
+      if (typeof rawAttr === 'string') {
+        try { rawAttr = JSON.parse(rawAttr); } catch { rawAttr = []; }
+      }
+
+      if (Array.isArray(rawAttr) && rawAttr.length > 0) {
+        rawAttr.forEach((item: any) => {
+          const label = item.label || item.nameField || item.name || 'Campo';
+          const val = String(item.valueFile?.fileName || item.value || item.val || 'N/A');
+          doc.fontSize(10).fillColor('#475569').text(`${label}: `, { continued: true }).fillColor('#0f172a').text(val);
+          doc.moveDown(0.2);
+        });
+      } else if (rawAttr && typeof rawAttr === 'object') {
+        Object.entries(rawAttr).forEach(([k, v]) => {
+          const val = String((v as any)?.fileName || v || 'N/A');
+          doc.fontSize(10).fillColor('#475569').text(`${k}: `, { continued: true }).fillColor('#0f172a').text(val);
+          doc.moveDown(0.2);
+        });
+      } else {
+        doc.fontSize(10).fillColor('#94a3b8').text('Sin atributos adicionales registrados.');
+      }
+
+      doc.end();
+    });
+  }
+
+
+  async getTotal(assetTypeId?: string) {
+    const camposTotalizables = await this.prisma.assetFieldDefinition.findMany({
+      where: {
+        ...(assetTypeId && { assetTypeId }),
+        metadata: {
+          path: ['isCountTotal'],
+          equals: true,
+        },
+      },
+      select: {
+        id: true,
+        label: true,
+      },
+    });
+
+    if (camposTotalizables.length === 0) {
+      return {
+        totalGeneral: 0,
+        camposSumados: [],
+        activos: [],
+      };
+    }
+
+    const idFieldsParaSumar = camposTotalizables.map((campo) => campo.id);
+
+    const assets = await this.prisma.asset.findMany({
+      where: {
+        ...(assetTypeId && { assetTypeId }),        
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        attributesData: true,
+      },
+    });
+
+    let totalGeneral = 0;
+
+    const activosConTotal = assets.map((asset) => {
+      let sumaActivo = 0;
+      if (Array.isArray(asset.attributesData)) {
+        for (const attr of asset.attributesData as Array<any>) {
+          if (idFieldsParaSumar.includes(attr.idField)) {
+            const valorNumerico = parseFloat(attr.value) || 0;
+            sumaActivo += valorNumerico;
+            totalGeneral += valorNumerico;
+          }
+        }
+      }
+
+      return {
+        id: asset.id,
+        code: asset.code,
+        name: asset.name,
+        totalCalculado: sumaActivo,
+        attributesData: asset.attributesData,
+      };
+    });
+    return {
+      totalGeneral,
+      camposSumados: camposTotalizables.map((c) => c.label), 
+      activos: activosConTotal,
+    };
+  }
+
 }

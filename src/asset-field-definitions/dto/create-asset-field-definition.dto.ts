@@ -2,6 +2,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -12,6 +13,9 @@ export enum FieldType {
   NUMBER = 'NUMBER',
   SELECT = 'SELECT',
   DATE = 'DATE',
+  LOCATION = 'LOCATION',
+  CURRENCY = 'CURRENCY',
+  GALLERY = 'GALLERY',
   FILE = 'FILE',
 }
 
@@ -35,4 +39,14 @@ export class CreateAssetFieldDefinitionDto {
 
   @IsBoolean()
   isRequired: boolean;
+
+
+  @IsNumber()
+  @IsOptional()
+  position?: number;
+
+
+  @IsObject()
+  @IsOptional()
+  metadata?: any;
 }
