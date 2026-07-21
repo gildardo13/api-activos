@@ -47,4 +47,7 @@ export class CreateAssetTypeDto {
   @IsObject()
   @IsOptional()
   metadata?: any;
+
+  @IsOptional()
+  templateDesign?: any;
 }

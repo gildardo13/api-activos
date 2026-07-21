@@ -22,7 +22,7 @@ export class AssetTypesService {
       throw new BadRequestException('Tiene que seleccionar una clasificación');
     }
 
-    const { categoryId, metadata, ...restDto } = createAssetTypeDto;
+    const { categoryId, metadata, templateDesign, ...restDto } = createAssetTypeDto;
 
     const newAssetType = await this.prisma.assetType.create({
       data: {
@@ -31,7 +31,10 @@ export class AssetTypesService {
         metadata: {
           indexCol: 0,
           indexRow:0
-        }
+        },
+        ...(templateDesign !== undefined && {
+          templateDesign: templateDesign as unknown as Prisma.InputJsonValue,
+        }),
       },
     });
 
@@ -154,8 +157,8 @@ export class AssetTypesService {
       throw new NotFoundException('Asset type not found');
     }
 
-    // Separamos categoryId y metadata para evitar el choque con la firma de índice de TypeScript
-    const { categoryId, metadata, ...restDto } = updateAssetTypeDto;
+    // Separamos categoryId, metadata y templateDesign para evitar el choque con la firma de índice de TypeScript
+    const { categoryId, metadata, templateDesign, ...restDto } = updateAssetTypeDto;
 
     const updatedAssetType = await this.prisma.assetType.update({
       where: { id },
@@ -166,6 +169,9 @@ export class AssetTypesService {
         }),
         ...(metadata !== undefined && {
           metadata: metadata as unknown as Prisma.InputJsonValue,
+        }),
+        ...(templateDesign !== undefined && {
+          templateDesign: templateDesign as unknown as Prisma.InputJsonValue,
         }),
       },
       include: {

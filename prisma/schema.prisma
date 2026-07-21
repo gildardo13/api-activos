@@ -52,6 +52,7 @@ model AssetType {
   status Status @default(ACTIVE)
   clasificationType ClasificationType?
   metadata Json?    @map("metadata")
+  templateDesign Json?   @map("template_design")
   assets      Asset[]
   assetFieldDefinitions      AssetFieldDefinition[]
 

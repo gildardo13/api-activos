@@ -1590,4 +1590,81 @@ export class AssetsService {
       assets: uniqueAssets.map((a: any) => ({ id: a.id, code: a.code, name: a.name })),
     };
   }
+
+  // GENERATE ASSET PDF BINARY (NESTJS BACKEND PDF GENERATION)
+  async generateAssetPdf(id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id },
+      include: {
+        assetType: true,
+      },
+    });
+
+    if (!asset) {
+      throw new BadRequestException('Asset not found');
+    }
+
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 36, size: 'A4' });
+    const chunks: Buffer[] = [];
+
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    return new Promise((resolve, reject) => {
+      doc.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        resolve({
+          buffer,
+          filename: `Ficha_${(asset.code || asset.name || 'Activo').replace(/\s+/g, '_')}.pdf`,
+        });
+      });
+
+      doc.on('error', (err: any) => reject(err));
+
+      // Header
+      doc.fontSize(20).fillColor('#0f172a').text(asset.name, { align: 'left' });
+      doc.fontSize(10).fillColor('#64748b').text(`Código: ${asset.code || 'S/N'}  |  Fecha: ${new Date().toLocaleDateString('es-MX')}`);
+      doc.moveDown(0.5);
+      doc.moveTo(36, doc.y).lineTo(559, doc.y).strokeColor('#cbd5e1').stroke();
+      doc.moveDown(1);
+
+      // Status & Location
+      doc.fontSize(11).fillColor('#334155').text(`Estado: ${asset.status}`, { continued: true });
+      doc.text(`   |   Ubicación: ${asset.lastLocation || 'N/A'}`);
+      doc.moveDown(0.5);
+
+      if (asset.description) {
+        doc.fontSize(10).fillColor('#475569').text(`Descripción: ${asset.description}`);
+        doc.moveDown(1);
+      }
+
+      // Attributes table
+      doc.fontSize(12).fillColor('#0f172a').text('ESPECIFICACIONES TÉCNICAS Y ATRIBUTOS', { underline: true });
+      doc.moveDown(0.8);
+
+      let rawAttr: any = asset.attributesData;
+      if (typeof rawAttr === 'string') {
+        try { rawAttr = JSON.parse(rawAttr); } catch { rawAttr = []; }
+      }
+
+      if (Array.isArray(rawAttr) && rawAttr.length > 0) {
+        rawAttr.forEach((item: any) => {
+          const label = item.label || item.nameField || item.name || 'Campo';
+          const val = String(item.valueFile?.fileName || item.value || item.val || 'N/A');
+          doc.fontSize(10).fillColor('#475569').text(`${label}: `, { continued: true }).fillColor('#0f172a').text(val);
+          doc.moveDown(0.2);
+        });
+      } else if (rawAttr && typeof rawAttr === 'object') {
+        Object.entries(rawAttr).forEach(([k, v]) => {
+          const val = String((v as any)?.fileName || v || 'N/A');
+          doc.fontSize(10).fillColor('#475569').text(`${k}: `, { continued: true }).fillColor('#0f172a').text(val);
+          doc.moveDown(0.2);
+        });
+      } else {
+        doc.fontSize(10).fillColor('#94a3b8').text('Sin atributos adicionales registrados.');
+      }
+
+      doc.end();
+    });
+  }
 }

@@ -170,4 +170,21 @@ export class AssetsController {
   async bulkUploadFiles() {
     return this.assetsService.bulkUploadFiles();
   }
+
+  @Get('/pdf/:id')
+  @HttpCode(HttpStatus.OK)
+  async downloadAssetPdf(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.assetsService.generateAssetPdf(id);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+
+    return res.end(buffer);
+  }
 }
