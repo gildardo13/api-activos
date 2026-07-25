@@ -75,7 +75,7 @@ export class CamLiveService {
       );
       return res.data;
     } catch (err: any) {
-      this.logger.warn(`Error en primera consulta de lista de cámaras: ${err.message}.`);
+      this.logger.warn(`Error en primera consulta de lista de cámaras (FLESPI): ${err.message}.`);
     }
   }
 
@@ -90,7 +90,7 @@ export class CamLiveService {
       );
       return res.data;
     } catch (err: any) {
-      this.logger.warn(`Error al solicitar cámara: ${err.message}.`);
+      this.logger.warn(`Error al solicitar cámara (FLESPI): ${err.message}.`);
     }
   }
 
