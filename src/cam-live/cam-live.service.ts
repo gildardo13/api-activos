@@ -4,10 +4,13 @@ import { UpdateCamLiveDto } from './dto/update-cam-live.dto';
 import { RequestFlespiStreamDto, RequestStreamBatchDto } from './dto/request-flespi-stream.dto';
 import { RequestPlaybackDto, QueryTimelineDto } from './dto/request-playback.dto';
 import axios, { AxiosInstance } from 'axios';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class CamLiveService {
   private readonly logger = new Logger(CamLiveService.name);
+
+  constructor(private readonly prisma: PrismaService) { }
 
   private get apiKey(): string {
     return process.env.X_API_KEY || '';
@@ -76,6 +79,40 @@ export class CamLiveService {
       return res.data;
     } catch (err: any) {
       this.logger.warn(`Error en primera consulta de lista de cámaras (FLESPI): ${err.message}.`);
+    }
+  }
+
+  async getAvailableFlespiDevices(currentDeviceCam?: string) {
+    try {
+      const devices = await this.getFlespiDevices();
+      if (!Array.isArray(devices)) {
+        return devices;
+      }
+
+      // Query assigned devices from database
+      const assignedDevices = await this.prisma.gpsDevice.findMany({
+        where: {
+          deviceCam: {
+            not: null,
+          },
+        },
+        select: {
+          deviceCam: true,
+        },
+      });
+
+      const assignedIdents = new Set(
+        assignedDevices
+          .map((d) => d.deviceCam)
+          .filter((ident): ident is string => !!ident && ident !== currentDeviceCam)
+      );
+
+      return devices.filter((device: any) => {
+        const ident = device.configuration?.ident || device.ident || device.id?.toString() || "";
+        return !assignedIdents.has(ident);
+      });
+    } catch (err: any) {
+      this.logger.warn(`Error al consultar lista de cámaras disponibles (FLESPI): ${err.message}.`);
     }
   }
 
