@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Param } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
 import { CamLiveService } from './cam-live.service';
 import { CreateCamLiveDto } from './dto/create-cam-live.dto';
@@ -37,6 +37,16 @@ export class CamLiveController {
   @ApiResponse({ status: 200, description: 'List of devices retrieved successfully.' })
   async getDevices() {
     return this.camLiveService.getFlespiDevices();
+  }
+
+  @Get('/flespi/devices-available')
+  @ApiOperation({
+    summary: 'List available Flespi devices',
+    description: 'Queries the Flespi Telematics Hub and filters out devices already assigned to a GpsDevice.',
+  })
+  @ApiResponse({ status: 200, description: 'List of available devices retrieved successfully.' })
+  async getAvailableDevices(@Query('currentDeviceCam') currentDeviceCam?: string) {
+    return this.camLiveService.getAvailableFlespiDevices(currentDeviceCam);
   }
 
   @Post('/flespi/streams/request')
