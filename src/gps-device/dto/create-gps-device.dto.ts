@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   Length,
@@ -19,4 +20,13 @@ export class CreateGpsDeviceDto {
   @IsOptional()
   @IsString()
   providerCompany?: string;
+
+
+  @IsOptional()
+  @IsBoolean()
+  isCamera?: boolean;
+
+  @IsOptional()
+  @IsString()
+  deviceCam?: string;
 }

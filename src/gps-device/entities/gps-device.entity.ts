@@ -3,4 +3,6 @@ export class GpsDevice {
     model: string;
     phoneNumber: string;
     providerCompany: string;
+    isCamera:boolean;
+    deviceCam:string
 }

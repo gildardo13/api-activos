@@ -25,16 +25,14 @@ export class GpsDeviceService {
         model: createGpsDeviceDto.model,
         phoneNumber: createGpsDeviceDto.phoneNumber,
         providerCompany: createGpsDeviceDto.providerCompany,
+        isCamera:createGpsDeviceDto.isCamera,
+        deviceCam:createGpsDeviceDto.deviceCam
       }
     });
   }
 
   async findAll() {
-    return this.prisma.gpsDevice.findMany({
-      where: {
-
-      }
-    });
+    return this.prisma.gpsDevice.findMany();
   }
 
   async getGpsDevicePaginated(query: QueryGpsDeviceDto) {
@@ -144,6 +142,8 @@ export class GpsDeviceService {
         model: updateGpsDeviceDto.model,
         phoneNumber: updateGpsDeviceDto.phoneNumber,
         providerCompany: updateGpsDeviceDto.providerCompany,
+        isCamera: updateGpsDeviceDto.isCamera,
+        deviceCam:updateGpsDeviceDto.deviceCam
       }
     })
   }
