@@ -8,6 +8,8 @@ import {
   Min,
   ArrayNotEmpty,
   ArrayMaxSize,
+  IsNumber,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -91,4 +93,27 @@ export class RequestStreamBatchDto {
   @IsOptional()
   @IsIn(['main', 'sub'])
   streamtype?: 'main' | 'sub';
+}
+
+
+export class bodySaveMedia {
+
+  @IsString()
+  deviceId: string;
+
+  @IsString()
+  from: string;
+
+  @IsNumber()
+  duration: number;
+
+  @IsNumber()
+  channel: number;
+
+  @IsOptional()
+  @IsBoolean()
+  queue: boolean
+
+
+
 }
