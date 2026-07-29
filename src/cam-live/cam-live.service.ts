@@ -1,7 +1,7 @@
 import { Injectable, Logger, HttpException } from '@nestjs/common';
 import { CreateCamLiveDto } from './dto/create-cam-live.dto';
 import { UpdateCamLiveDto } from './dto/update-cam-live.dto';
-import { RequestFlespiStreamDto, RequestStreamBatchDto } from './dto/request-flespi-stream.dto';
+import { bodySaveMedia, RequestFlespiStreamDto, RequestStreamBatchDto } from './dto/request-flespi-stream.dto';
 import { RequestPlaybackDto, QueryTimelineDto } from './dto/request-playback.dto';
 import axios, { AxiosInstance } from 'axios';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -131,6 +131,25 @@ export class CamLiveService {
     }
   }
 
+
+  async requestFlespiLiveStreamSaveVideo(dto: bodySaveMedia) {
+    try {
+      const res = await this.streamApi().post<any>(
+        '/flespi/streams/request-video',
+        dto,
+        {
+          headers: { 'x-api-key': this.apiKey },
+        }
+      );
+      return res.data;
+    } catch (err: any) {
+      this.logger.warn(`Error al solicitar cámara (FLESPI): ${err.message}.`);
+    }
+  }
+
+
+  
+
   async requestFlespiLiveStreamBatch(dto: RequestStreamBatchDto) {
     try {
       const res = await this.streamApi().post<any>(
@@ -176,17 +195,36 @@ export class CamLiveService {
     }
   }
 
-  async getFlespiDeviceMedia(deviceId: string) {
+  async getFlespiDeviceMedia(deviceId: string, query?: { type?: string; channel?: string; from?: string; to?: string }) {
     try {
+      let numericId = deviceId;
+      if (isNaN(Number(deviceId))) {
+        const devices = await this.getFlespiDevices();
+        if (Array.isArray(devices)) {
+          const found = devices.find(
+            (d: any) => d.ident === deviceId || d.configuration?.ident === deviceId
+          );
+          if (found && found.id) {
+            numericId = found.id.toString();
+          } else {
+            throw new HttpException(`Dispositivo Flespi no encontrado para el ident: ${deviceId}`, 404);
+          }
+        } else {
+          throw new HttpException('No se pudo obtener la lista de dispositivos de Flespi', 502);
+        }
+      }
+
       const res = await this.streamApi().get<any>(
-        `/flespi/devices/${deviceId}/media`,
+        `/flespi/devices/${numericId}/media`,
         {
+          params: query,
           headers: { 'x-api-key': this.apiKey },
         }
       );
       return res.data;
     } catch (err: any) {
-      this.logger.warn(`Error en primera consulta de lista de cámaras: ${err.message}.`);
+      this.logger.warn(`Error al consultar media de Flespi: ${err.message}.`);
+      throw err;
     }
   }
 
@@ -217,5 +255,5 @@ export class CamLiveService {
       this.logger.warn(`Error en primera consulta de lista de cámaras: ${err.message}.`);
     }
   }
-  
+
 }

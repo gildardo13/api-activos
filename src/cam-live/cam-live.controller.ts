@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post, Param, Query } from 
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
 import { CamLiveService } from './cam-live.service';
 import { CreateCamLiveDto } from './dto/create-cam-live.dto';
-import { RequestFlespiStreamDto, RequestStreamBatchDto } from './dto/request-flespi-stream.dto';
+import { bodySaveMedia, RequestFlespiStreamDto, RequestStreamBatchDto } from './dto/request-flespi-stream.dto';
 import { RequestPlaybackDto, QueryTimelineDto } from './dto/request-playback.dto';
 
 @ApiTags('cam-live')
@@ -61,69 +61,23 @@ export class CamLiveController {
     return this.camLiveService.requestFlespiLiveStream(dto);
   }
 
-  @Post('/flespi/streams/request-batch')
+
+  @Post('/flespi/streams/request-video')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Request live stream of multiple channels at once',
-    description: 'Sends the start_videostream_batch command via Flespi and returns one HLS URL per channel.',
-  })
-  @ApiBody({ type: RequestStreamBatchDto })
-  @ApiResponse({ status: 201, description: 'Streams successfully started.' })
-  async requestStreamBatch(@Body() dto: RequestStreamBatchDto) {
-    return this.camLiveService.requestFlespiLiveStreamBatch(dto);
+  async requestStreamRequestVideo(@Body() dto: bodySaveMedia) {
+    return this.camLiveService.requestFlespiLiveStreamSaveVideo(dto);
   }
 
-  @Post('/flespi/streams/timeline')
-  @ApiOperation({
-    summary: 'Query device recording timeline',
-    description: 'Queries the time intervals with recorded video available on the device storage.',
-  })
-  @ApiBody({ type: QueryTimelineDto })
-  @ApiResponse({ status: 200, description: 'Available intervals retrieved successfully.' })
-  async queryTimeline(@Body() dto: QueryTimelineDto) {
-    return this.camLiveService.queryFlespiTimeline(dto);
-  }
+  
 
-  @Post('/flespi/streams/playback')
-  @ApiOperation({
-    summary: 'Play recorded video (HLS playback)',
-    description: 'Plays a recorded fragment of the MDVR as an HLS stream.',
-  })
-  @ApiBody({ type: RequestPlaybackDto })
-  @ApiResponse({ status: 200, description: 'Playback stream requested successfully.' })
-  async requestPlayback(@Body() dto: RequestPlaybackDto) {
-    return this.camLiveService.requestFlespiPlayback(dto);
-  }
 
   @Get('/flespi/devices/:deviceId/media')
-  @ApiOperation({
-    summary: 'List device media files',
-    description: 'Returns the videos/photos already uploaded to Flespi for a specific device.',
-  })
-  @ApiParam({ name: 'deviceId', example: '6486786' })
-  @ApiResponse({ status: 200, description: 'List of media files retrieved successfully.' })
-  async getMedia(@Param('deviceId') deviceId: string) {
-    return this.camLiveService.getFlespiDeviceMedia(deviceId);
+  async getMedia(
+    @Param('deviceId') deviceId: string,
+    @Query() query: { type?: string; channel?: string; from?: string; to?: string }
+  ) {
+    return this.camLiveService.getFlespiDeviceMedia(deviceId, query);
   }
 
-  @Get('/flespi/channels')
-  @ApiOperation({
-    summary: 'List Flespi channels',
-    description: 'Queries the Flespi Telematics Hub and returns the configured channels.',
-  })
-  @ApiResponse({ status: 200, description: 'List of channels retrieved successfully.' })
-  async getChannels() {
-    return this.camLiveService.getFlespiChannels();
-  }
 
-  @Get('/flespi/devices/:deviceId/telemetry')
-  @ApiOperation({
-    summary: 'Get device current telemetry',
-    description: 'Returns the last known telemetry reported by the tracker to Flespi.',
-  })
-  @ApiParam({ name: 'deviceId', example: '6486786' })
-  @ApiResponse({ status: 200, description: 'Device telemetry retrieved successfully.' })
-  async getDeviceTelemetry(@Param('deviceId') deviceId: string) {
-    return this.camLiveService.getFlespiDeviceTelemetry(deviceId);
-  }
 }
