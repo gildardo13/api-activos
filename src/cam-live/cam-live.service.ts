@@ -134,6 +134,24 @@ export class CamLiveService {
 
   async requestFlespiLiveStreamSaveVideo(dto: bodySaveMedia) {
     try {
+      if (!dto.from) {
+        const now = new Date();
+        // Restar 3 minutos a la hora actual para evitar desfases de sincronización
+        now.setMinutes(now.getMinutes() - 3);
+
+        const tzoffset = now.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(now.getTime() - tzoffset).toISOString().slice(0, -1);
+        
+        const offsetMinutes = now.getTimezoneOffset();
+        const offsetSign = offsetMinutes > 0 ? '-' : '+';
+        const absOffsetMinutes = Math.abs(offsetMinutes);
+        const offsetHours = String(Math.floor(absOffsetMinutes / 60)).padStart(2, '0');
+        const offsetMins = String(absOffsetMinutes % 60).padStart(2, '0');
+        const formattedOffset = `${offsetSign}${offsetHours}:${offsetMins}`;
+        
+        dto.from = `${localISOTime.split('.')[0].replace('T', ' ')}${formattedOffset}`;
+      }
+
       const res = await this.streamApi().post<any>(
         '/flespi/streams/request-video',
         dto,

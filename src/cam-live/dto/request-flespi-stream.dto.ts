@@ -62,7 +62,8 @@ export class bodySaveMedia {
   deviceId: string;
 
   @IsString()
-  from: string;
+  @IsOptional()
+  from?: string;
 
   @IsNumber()
   duration: number;
