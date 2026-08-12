@@ -61,6 +61,29 @@ export class AssetDocumentsService {
     headers['tenantId'] = this._empresa;
     return { ...headers, ...extra };
   }
+
+  private getFileNameWithExtension(fileName: string, fileUrl: string, contentType: string = ''): string {
+    const lowerName = fileName.toLowerCase();
+    if (lowerName.endsWith('.pdf') || lowerName.endsWith('.txt')) {
+      return fileName;
+    }
+
+    if (contentType.includes('application/pdf')) {
+      return `${fileName}.pdf`;
+    }
+    if (contentType.includes('text/plain')) {
+      return `${fileName}.txt`;
+    }
+
+    const fileExt = fileUrl.split('.').pop()?.split(/[?#]/)[0]?.toLowerCase();
+    if (fileExt === 'pdf' || fileExt === 'txt') {
+      return `${fileName}.${fileExt}`;
+    }
+
+    // Default fallback
+    return `${fileName}.pdf`;
+  }
+
   async create(dto: CreateAssetDocumentDto) {
     const fieldDefinitionId = dto.fieldDefinitionId;
     const assetId = dto.assetId;
@@ -444,8 +467,13 @@ export class AssetDocumentsService {
 
         // Opción segura para Node.js + Axios
         const formData = new FormData();
+        const uploadFileName = this.getFileNameWithExtension(
+          document.fileName,
+          document.fileUrl,
+          fileResponse.headers['content-type'] as string,
+        );
         // Pasamos el buffer directamente y configuramos el nombre de archivo de forma explícita
-        formData.append('file', new Blob([fileBuffer], { type: fileResponse.headers['content-type'] }), document.fileName);
+        formData.append('file', new Blob([fileBuffer], { type: fileResponse.headers['content-type'] }), uploadFileName);
 
         const uploadRes = await api.post<any>('/documents/upload', formData, {
           headers: {
@@ -556,10 +584,15 @@ export class AssetDocumentsService {
       const fileBuffer = Buffer.from(fileResponse.data);
 
       const formData = new FormData();
+      const uploadFileName = this.getFileNameWithExtension(
+        document.fileName,
+        document.fileUrl,
+        fileResponse.headers['content-type'] as string,
+      );
       formData.append(
         'file',
         new Blob([fileBuffer], { type: fileResponse.headers['content-type'] }),
-        document.fileName,
+        uploadFileName,
       );
       formData.append('query', query);
 
