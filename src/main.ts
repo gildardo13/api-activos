@@ -8,6 +8,7 @@ import { NextFunction, Request } from 'express';
 import { RequestContext } from './common/context/request-context';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
   app.useGlobalInterceptors(new ErrorInterceptor());
   app.use(cookieParser());
   app.useGlobalPipes(
