@@ -47,7 +47,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Multi-organization API')
     .setDescription('API para gestionar múltiples empresas y sistemas')
-    .setVersion('1.0')
+    .setVersion(process.env.VERSION || '1.0')
     .addBearerAuth()
     .build();
 

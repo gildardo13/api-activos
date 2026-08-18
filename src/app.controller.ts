@@ -165,7 +165,7 @@ export class AppController {
             <p>El backend de Control de Activos está funcionando correctamente y listo para recibir peticiones.</p>
             <a href="/api/docs" class="btn">Explorar Documentación API (Swagger)</a>
             <div class="footer">
-                &copy; 2026 Jibby Corp. Todos los derechos reservados.
+                Versión ${process.env.VERSION || '1.0.0'} &bull; &copy; 2026 Jibby Corp. Todos los derechos reservados.
             </div>
         </div>
     </body>
