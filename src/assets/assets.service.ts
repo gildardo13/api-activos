@@ -1604,7 +1604,16 @@ export class AssetsService {
       if (Array.isArray(asset.attributesData)) {
         for (const attr of asset.attributesData as Array<any>) {
           if (idFieldsParaSumar.includes(attr.idField)) {
-            const valorNumerico = parseFloat(attr.value) || 0;
+            let valorNumerico = 0;
+            if (attr.value !== undefined && attr.value !== null) {
+              if (typeof attr.value === 'number') {
+                valorNumerico = attr.value;
+              } else {
+                const cleaned = String(attr.value).replace(/[^0-9.-]/g, '');
+                const parsed = parseFloat(cleaned);
+                valorNumerico = isNaN(parsed) ? 0 : parsed;
+              }
+            }
             sumaActivo += valorNumerico;
             totalGeneral += valorNumerico;
           }
