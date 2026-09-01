@@ -146,13 +146,20 @@ export class ApprovalFlowsService {
 
   async createSolicitud(request: CreateSolicitudDto, moduleId: string) {
     try {
+      this.logger.log(`Inciando proceso de Flujo`);
+
       const res = await this.workflowApi().post<any>(`approval/request/${moduleId}`, request, {
         headers: this.buildHeaders(),
       });
       if (!res.data || (Array.isArray(res.data) && res.data.length === 0) || (typeof res.data === "object" && Object.keys(res.data).length === 0)) {
+         this.logger.log(`Flujo aplicado / sin flujo existente`);
+         this.logger.log(res.data);
         return [];
       }
+      this.logger.log(`Flujo aplicado`);
+      this.logger.log(res.data);
       return res.data;
+     
 
       //return [];
 
@@ -164,9 +171,11 @@ export class ApprovalFlowsService {
       console.log('METHOD:', err.config?.method);
 
       this.logger.error(`createSolicitud error: ${err.message}`);
+      this.logger.log(`:(`);
       return [];
     }
   }
+
 
   async getWorkflowByIdClientReference(
     clientReferenceId: string,
