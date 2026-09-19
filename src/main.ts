@@ -82,7 +82,7 @@ async function bootstrap() {
     RequestContext.run(store, () => next());
   });
 
-  await app.listen(2100);
+  await app.listen(process.env.PORT || 2006);
 }
 
 bootstrap();
