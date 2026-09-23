@@ -76,6 +76,7 @@ export class AppModule {
         { path: '/', method: RequestMethod.GET },
         { path: 'api/docs', method: RequestMethod.GET },
         { path: 'api/docs/(.*)', method: RequestMethod.GET },
+        { path: 'gps/telemetry', method: RequestMethod.POST },
       )
       .forRoutes('*');
   }
